@@ -1,7 +1,213 @@
+// ===== WEBSOCKET MANAGER CLASS =====
+class WebSocketManager {
+    constructor() {
+        this.connections = new Map();
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
+        this.reconnectDelay = 1000;
+        this.isOnline = navigator.onLine;
+        this.setupNetworkListeners();
+    }
+
+    setupNetworkListeners() {
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.reconnectAll();
+        });
+        
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            this.closeAll();
+        });
+    }
+
+    connect(url, options = {}) {
+        if (!this.isOnline) return null;
+        
+        try {
+            const ws = new WebSocket(url);
+            const connectionId = Date.now() + Math.random();
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected:', url);
+                this.reconnectAttempts = 0;
+                if (options.onOpen) options.onOpen();
+            };
+            
+            ws.onmessage = (event) => {
+                if (options.onMessage) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        options.onMessage(data);
+                    } catch (error) {
+                        console.error('WebSocket message parse error:', error);
+                    }
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket closed:', url);
+                this.connections.delete(connectionId);
+                if (options.onClose) options.onClose();
+                this.attemptReconnect(url, options);
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                if (options.onError) options.onError(error);
+            };
+            
+            this.connections.set(connectionId, { ws, url, options });
+            return connectionId;
+        } catch (error) {
+            console.error('WebSocket connection failed:', error);
+            return null;
+        }
+    }
+
+    attemptReconnect(url, options) {
+        if (!this.isOnline || this.reconnectAttempts >= this.maxReconnectAttempts) {
+            return;
+        }
+        
+        this.reconnectAttempts++;
+        const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+        
+        setTimeout(() => {
+            console.log(`Reconnecting WebSocket (attempt ${this.reconnectAttempts})...`);
+            this.connect(url, options);
+        }, delay);
+    }
+
+    reconnectAll() {
+        this.connections.forEach(({ url, options }) => {
+            this.connect(url, options);
+        });
+    }
+
+    closeAll() {
+        this.connections.forEach(({ ws }) => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+        });
+        this.connections.clear();
+    }
+
+    send(connectionId, data) {
+        const connection = this.connections.get(connectionId);
+        if (connection && connection.ws.readyState === WebSocket.OPEN) {
+            connection.ws.send(JSON.stringify(data));
+            return true;
+        }
+        return false;
+    }
+}
+
+// ===== PERFORMANCE MONITOR CLASS =====
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = {
+            apiCalls: 0,
+            successfulCalls: 0,
+            failedCalls: 0,
+            totalResponseTime: 0,
+            averageResponseTime: 0,
+            memoryUsage: 0,
+            cacheHits: 0,
+            cacheMisses: 0
+        };
+        this.startTime = Date.now();
+        this.observers = [];
+        this.setupPerformanceObserver();
+    }
+
+    setupPerformanceObserver() {
+        if ('PerformanceObserver' in window) {
+            const observer = new PerformanceObserver((list) => {
+                list.getEntries().forEach((entry) => {
+                    if (entry.entryType === 'navigation') {
+                        this.metrics.loadTime = entry.loadEventEnd - entry.loadEventStart;
+                    }
+                });
+            });
+            observer.observe({ entryTypes: ['navigation', 'resource'] });
+        }
+    }
+
+    recordApiCall(responseTime, success = true) {
+        this.metrics.apiCalls++;
+        this.metrics.totalResponseTime += responseTime;
+        this.metrics.averageResponseTime = this.metrics.totalResponseTime / this.metrics.apiCalls;
+        
+        if (success) {
+            this.metrics.successfulCalls++;
+        } else {
+            this.metrics.failedCalls++;
+        }
+        
+        this.notifyObservers();
+    }
+
+    recordCacheHit(hit = true) {
+        if (hit) {
+            this.metrics.cacheHits++;
+        } else {
+            this.metrics.cacheMisses++;
+        }
+    }
+
+    getMemoryUsage() {
+        if ('memory' in performance) {
+            this.metrics.memoryUsage = {
+                used: Math.round(performance.memory.usedJSHeapSize / 1048576),
+                total: Math.round(performance.memory.totalJSHeapSize / 1048576),
+                limit: Math.round(performance.memory.jsHeapSizeLimit / 1048576)
+            };
+        }
+        return this.metrics.memoryUsage;
+    }
+
+    getMetrics() {
+        this.getMemoryUsage();
+        return {
+            ...this.metrics,
+            uptime: Date.now() - this.startTime,
+            successRate: this.metrics.apiCalls > 0 ? (this.metrics.successfulCalls / this.metrics.apiCalls) * 100 : 0,
+            cacheHitRate: (this.metrics.cacheHits + this.metrics.cacheMisses) > 0 ? 
+                (this.metrics.cacheHits / (this.metrics.cacheHits + this.metrics.cacheMisses)) * 100 : 0
+        };
+    }
+
+    addObserver(callback) {
+        this.observers.push(callback);
+    }
+
+    notifyObservers() {
+        this.observers.forEach(callback => callback(this.getMetrics()));
+    }
+
+    reset() {
+        this.metrics = {
+            apiCalls: 0,
+            successfulCalls: 0,
+            failedCalls: 0,
+            totalResponseTime: 0,
+            averageResponseTime: 0,
+            memoryUsage: 0,
+            cacheHits: 0,
+            cacheMisses: 0
+        };
+        this.startTime = Date.now();
+    }
+}
+
 // ===== UNIVERSAL API CLASS =====
 class UniversalAPI {
     constructor() {
         this.baseCurrency = localStorage.getItem('baseCurrency') || 'USD';
+        this.wsManager = new WebSocketManager();
+        this.performanceMonitor = new PerformanceMonitor();
         
         this.assets = {
             // Cryptocurrencies
@@ -70,9 +276,64 @@ class UniversalAPI {
         this.apiCallCount = 0;
         this.rateLimitDelay = 1000;
         this.maxRetries = 3;
+        this.requestQueue = [];
+        this.isProcessingQueue = false;
+        this.circuitBreaker = {
+            failures: 0,
+            threshold: 5,
+            timeout: 30000,
+            state: 'CLOSED' // CLOSED, OPEN, HALF_OPEN
+        };
+        this.setupServiceWorker();
+    }
+
+    async setupServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register('./static/sw.js');
+                console.log('Service Worker registered:', registration);
+                
+                // Listen for messages from service worker
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    this.handleServiceWorkerMessage(event.data);
+                });
+                
+                // Check for updates
+                registration.addEventListener('updatefound', () => {
+                    console.log('Service Worker update found');
+                });
+            } catch (error) {
+                console.warn('Service Worker registration failed:', error);
+            }
+        }
+    }
+
+    handleServiceWorkerMessage(data) {
+        switch (data.type) {
+            case 'BACKGROUND_SYNC':
+                if (data.action === 'PRICE_UPDATE_AVAILABLE') {
+                    this.notifyPriceUpdate();
+                }
+                break;
+        }
+    }
+
+    notifyPriceUpdate() {
+        // Notify the main app about background price updates
+        window.dispatchEvent(new CustomEvent('backgroundPriceUpdate'));
     }
 
     async fetchWithTimeout(url, timeout = 8000) {
+        // Check circuit breaker
+        if (this.circuitBreaker.state === 'OPEN') {
+            if (Date.now() - this.circuitBreaker.lastFailure < this.circuitBreaker.timeout) {
+                throw new Error('Circuit breaker is OPEN');
+            } else {
+                this.circuitBreaker.state = 'HALF_OPEN';
+            }
+        }
+
+        const startTime = Date.now();
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
         
@@ -81,26 +342,90 @@ class UniversalAPI {
                 signal: controller.signal,
                 headers: { 
                     'Accept': 'application/json',
-                    'User-Agent': 'PriceTracker/1.0'
+                    'User-Agent': 'PriceTracker/2.0',
+                    'Cache-Control': 'no-cache'
                 }
             });
             clearTimeout(timeoutId);
             
+            const responseTime = Date.now() - startTime;
+            
             if (response.ok) {
                 this.apiCallCount++;
-                return await response.json();
+                this.performanceMonitor.recordApiCall(responseTime, true);
+                this.resetCircuitBreaker();
+                
+                const data = await response.json();
+                
+                // Cache successful response in service worker
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'CACHE_PRICES',
+                        data: data
+                    });
+                }
+                
+                return data;
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
         } catch (error) {
             clearTimeout(timeoutId);
+            const responseTime = Date.now() - startTime;
+            this.performanceMonitor.recordApiCall(responseTime, false);
+            this.recordCircuitBreakerFailure();
             throw error;
         }
-        throw new Error('Request failed');
+    }
+
+    resetCircuitBreaker() {
+        this.circuitBreaker.failures = 0;
+        this.circuitBreaker.state = 'CLOSED';
+    }
+
+    recordCircuitBreakerFailure() {
+        this.circuitBreaker.failures++;
+        this.circuitBreaker.lastFailure = Date.now();
+        
+        if (this.circuitBreaker.failures >= this.circuitBreaker.threshold) {
+            this.circuitBreaker.state = 'OPEN';
+            console.warn('Circuit breaker opened due to repeated failures');
+        }
     }
 
     async rateLimitDelay() {
         if (this.apiCallCount > 0 && this.apiCallCount % 5 === 0) {
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
+    }
+
+    async queueRequest(requestFn) {
+        return new Promise((resolve, reject) => {
+            this.requestQueue.push({ requestFn, resolve, reject });
+            this.processQueue();
+        });
+    }
+
+    async processQueue() {
+        if (this.isProcessingQueue || this.requestQueue.length === 0) {
+            return;
+        }
+
+        this.isProcessingQueue = true;
+
+        while (this.requestQueue.length > 0) {
+            const { requestFn, resolve, reject } = this.requestQueue.shift();
+            
+            try {
+                await this.rateLimitDelay();
+                const result = await requestFn();
+                resolve(result);
+            } catch (error) {
+                reject(error);
+            }
+        }
+
+        this.isProcessingQueue = false;
     }
 
     async fetchCryptoPrice(asset = 'btc') {

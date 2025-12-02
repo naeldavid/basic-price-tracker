@@ -396,6 +396,171 @@ class CustomChart {
     }
 }
 
+// ===== NOTIFICATION MANAGER CLASS =====
+class NotificationManager {
+    constructor() {
+        this.container = null;
+        this.notifications = new Map();
+        this.maxNotifications = 5;
+        this.defaultDuration = 5000;
+        this.init();
+    }
+
+    init() {
+        this.container = document.getElementById('notificationContainer');
+        if (!this.container) {
+            this.container = document.createElement('div');
+            this.container.id = 'notificationContainer';
+            this.container.className = 'notification-container';
+            document.body.appendChild(this.container);
+        }
+    }
+
+    show(message, type = 'info', duration = this.defaultDuration, actions = []) {
+        const id = Date.now() + Math.random();
+        const notification = this.createNotification(id, message, type, actions);
+        
+        this.container.appendChild(notification);
+        this.notifications.set(id, notification);
+        
+        // Auto-remove old notifications
+        if (this.notifications.size > this.maxNotifications) {
+            const oldestId = this.notifications.keys().next().value;
+            this.remove(oldestId);
+        }
+        
+        // Auto-remove after duration
+        if (duration > 0) {
+            setTimeout(() => this.remove(id), duration);
+        }
+        
+        return id;
+    }
+
+    createNotification(id, message, type, actions) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.setAttribute('role', 'alert');
+        notification.setAttribute('aria-live', 'polite');
+        
+        const content = document.createElement('div');
+        content.className = 'notification-content';
+        
+        const messageEl = document.createElement('div');
+        messageEl.className = 'notification-message';
+        messageEl.textContent = message;
+        content.appendChild(messageEl);
+        
+        if (actions.length > 0) {
+            const actionsEl = document.createElement('div');
+            actionsEl.className = 'notification-actions';
+            
+            actions.forEach(action => {
+                const button = document.createElement('button');
+                button.textContent = action.label;
+                button.className = 'notification-action';
+                button.onclick = () => {
+                    action.callback();
+                    this.remove(id);
+                };
+                actionsEl.appendChild(button);
+            });
+            
+            content.appendChild(actionsEl);
+        }
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'notification-close';
+        closeBtn.innerHTML = '×';
+        closeBtn.onclick = () => this.remove(id);
+        closeBtn.setAttribute('aria-label', 'Close notification');
+        
+        notification.appendChild(content);
+        notification.appendChild(closeBtn);
+        
+        return notification;
+    }
+
+    remove(id) {
+        const notification = this.notifications.get(id);
+        if (notification) {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+                this.notifications.delete(id);
+            }, 300);
+        }
+    }
+
+    clear() {
+        this.notifications.forEach((_, id) => this.remove(id));
+    }
+
+    success(message, duration) {
+        return this.show(message, 'success', duration);
+    }
+
+    error(message, duration = 8000) {
+        return this.show(message, 'error', duration);
+    }
+
+    warning(message, duration) {
+        return this.show(message, 'warning', duration);
+    }
+
+    info(message, duration) {
+        return this.show(message, 'info', duration);
+    }
+}
+
+// ===== FULLSCREEN MANAGER CLASS =====
+class FullscreenManager {
+    constructor() {
+        this.isFullscreen = false;
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        document.addEventListener('fullscreenchange', () => {
+            this.isFullscreen = !!document.fullscreenElement;
+            this.updateUI();
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F11') {
+                e.preventDefault();
+                this.toggle();
+            }
+        });
+    }
+
+    async toggle() {
+        try {
+            if (this.isFullscreen) {
+                await document.exitFullscreen();
+            } else {
+                await document.documentElement.requestFullscreen();
+            }
+        } catch (error) {
+            console.warn('Fullscreen operation failed:', error);
+        }
+    }
+
+    updateUI() {
+        const fullscreenBtn = document.querySelector('[onclick="toggleFullscreen()"]');
+        if (fullscreenBtn) {
+            const icon = fullscreenBtn.querySelector('.btn-icon');
+            if (icon) {
+                icon.textContent = this.isFullscreen ? '⛶' : '⛶';
+            }
+        }
+        
+        document.body.classList.toggle('fullscreen', this.isFullscreen);
+    }
+}
+
 // ===== UNIVERSAL TRACKER MAIN CLASS =====
 class UniversalTracker {
     constructor() {
@@ -410,6 +575,8 @@ class UniversalTracker {
         this.alerts = new AlertSystem();
         this.themes = new ThemeManager();
         this.coinAnimation = new CoinAnimation();
+        this.notifications = new NotificationManager();
+        this.fullscreenManager = new FullscreenManager();
         
         this.priceHistory = this.storage.loadHistory();
         this.settings = this.storage.loadSettings();
@@ -423,24 +590,156 @@ class UniversalTracker {
             failedUpdates: 0,
             averageResponseTime: 0
         };
+        this.isVisible = true;
+        this.backgroundSyncEnabled = false;
+        this.webSocketConnections = new Map();
         
         this.init();
     }
 
     init() {
         this.themes.loadTheme();
+        this.setupVisibilityAPI();
+        this.setupBackgroundSync();
+        this.setupWebSocketConnections();
         this.setupCategoryTabs();
         this.setupAssetTabs();
         this.setupUI();
         this.setupKeyboardShortcuts();
         this.setupAdvancedFeatures();
+        this.setupPWAFeatures();
         
         setTimeout(() => {
             this.fetchAllPrices();
             this.startAutoRefresh();
             this.loadNews();
             this.initializeAlerts();
+            this.hideLoadingSkeletons();
         }, 100);
+    }
+
+    setupVisibilityAPI() {
+        document.addEventListener('visibilitychange', () => {
+            this.isVisible = !document.hidden;
+            
+            if (this.isVisible) {
+                this.fetchAllPrices();
+                this.startAutoRefresh();
+            } else {
+                if (this.refreshInterval) {
+                    clearInterval(this.refreshInterval);
+                }
+            }
+        });
+    }
+
+    setupBackgroundSync() {
+        if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+            this.backgroundSyncEnabled = true;
+            
+            window.addEventListener('backgroundPriceUpdate', () => {
+                this.notifications.info('New price data available', 3000);
+                if (this.isVisible) {
+                    this.fetchAllPrices();
+                }
+            });
+        }
+    }
+
+    setupWebSocketConnections() {
+        const wsUrls = [
+            'wss://ws.finnhub.io?token=demo',
+            'wss://stream.binance.com:9443/ws/btcusdt@ticker'
+        ];
+        
+        wsUrls.forEach(url => {
+            try {
+                const connectionId = this.api.wsManager.connect(url, {
+                    onMessage: (data) => this.handleWebSocketMessage(data),
+                    onOpen: () => console.log('WebSocket connected:', url),
+                    onClose: () => console.log('WebSocket disconnected:', url),
+                    onError: (error) => console.warn('WebSocket error:', error)
+                });
+                
+                if (connectionId) {
+                    this.webSocketConnections.set(url, connectionId);
+                }
+            } catch (error) {
+                console.warn('WebSocket connection failed:', url, error);
+            }
+        });
+    }
+
+    handleWebSocketMessage(data) {
+        if (data.symbol && data.price) {
+            const asset = this.mapSymbolToAsset(data.symbol);
+            if (asset && this.allPrices[asset] !== data.price) {
+                this.allPrices[asset] = data.price;
+                this.updateDisplay();
+                this.updateAssetsOverview();
+            }
+        }
+    }
+
+    mapSymbolToAsset(symbol) {
+        const symbolMap = {
+            'BTCUSDT': 'btc',
+            'ETHUSDT': 'eth',
+            'BNBUSDT': 'bnb'
+        };
+        return symbolMap[symbol] || null;
+    }
+
+    setupPWAFeatures() {
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            this.showInstallPrompt(deferredPrompt);
+        });
+        
+        window.addEventListener('appinstalled', () => {
+            this.notifications.success('App installed successfully!', 3000);
+            deferredPrompt = null;
+        });
+    }
+
+    showInstallPrompt(deferredPrompt) {
+        const installId = this.notifications.show(
+            'Install Price Tracker for offline access and better performance',
+            'info',
+            0,
+            [
+                {
+                    label: 'Install',
+                    callback: async () => {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        if (outcome === 'accepted') {
+                            console.log('User accepted the install prompt');
+                        }
+                        deferredPrompt = null;
+                    }
+                },
+                {
+                    label: 'Later',
+                    callback: () => {}
+                }
+            ]
+        );
+    }
+
+    hideLoadingSkeletons() {
+        const skeletons = document.querySelectorAll('.skeleton, .loading-skeleton');
+        skeletons.forEach(skeleton => {
+            skeleton.style.display = 'none';
+        });
+        
+        const priceValue = document.querySelector('.price-value');
+        if (priceValue) {
+            priceValue.style.display = 'block';
+        }
     }
 
     setupAdvancedFeatures() {
@@ -455,6 +754,192 @@ class UniversalTracker {
         
         // Setup accessibility features
         this.setupAccessibility();
+        
+        // Setup analytics tabs
+        this.setupAnalyticsTabs();
+        
+        // Setup alerts management
+        this.setupAlertsManagement();
+    }
+
+    setupAnalyticsTabs() {
+        const analyticsTabs = document.querySelectorAll('.analytics-tab');
+        analyticsTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+                this.switchAnalyticsTab(targetTab);
+            });
+        });
+    }
+
+    switchAnalyticsTab(tabName) {
+        document.querySelectorAll('.analytics-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+        
+        document.querySelectorAll('.analytics-panel').forEach(panel => {
+            panel.classList.toggle('active', panel.id === `${tabName}Panel`);
+        });
+        
+        switch (tabName) {
+            case 'charts':
+                this.updateCharts();
+                break;
+            case 'indicators':
+                this.updateAdvancedAnalytics();
+                break;
+            case 'portfolio':
+                this.updatePortfolioAnalytics();
+                break;
+            case 'predictions':
+                this.updatePredictions();
+                break;
+        }
+    }
+
+    setupAlertsManagement() {
+        const alertAssetSelect = document.getElementById('alertAsset');
+        if (alertAssetSelect) {
+            const userAssets = this.api.getUserSelectedAssets();
+            userAssets.forEach(asset => {
+                const assetInfo = this.api.getAssetInfo(asset);
+                if (assetInfo) {
+                    const option = document.createElement('option');
+                    option.value = asset;
+                    option.textContent = `${assetInfo.emoji} ${assetInfo.name}`;
+                    alertAssetSelect.appendChild(option);
+                }
+            });
+        }
+        
+        this.updateActiveAlerts();
+    }
+
+    updateCharts() {
+        if (!this.chart) {
+            this.chart = new CustomChart('customChart');
+        }
+        
+        const sampleData = {};
+        const userAssets = this.api.getUserSelectedAssets().slice(0, 4);
+        userAssets.forEach(asset => {
+            sampleData[asset] = this.generateSampleHistory(asset);
+        });
+        
+        if (this.chart && this.chart.update) {
+            this.chart.update(sampleData);
+        }
+    }
+
+    updatePortfolioAnalytics() {
+        const userAssets = this.api.getUserSelectedAssets();
+        let totalValue = 0;
+        let totalChange = 0;
+        let bestPerformer = { asset: '', change: -Infinity };
+        let worstPerformer = { asset: '', change: Infinity };
+        
+        userAssets.forEach(asset => {
+            const price = this.allPrices[asset] || 0;
+            const change = this.calculateChange(asset);
+            
+            totalValue += price;
+            totalChange += change;
+            
+            if (change > bestPerformer.change) {
+                bestPerformer = { asset, change };
+            }
+            
+            if (change < worstPerformer.change) {
+                worstPerformer = { asset, change };
+            }
+        });
+        
+        const portfolioValue = document.getElementById('portfolioValue');
+        const portfolioChange = document.getElementById('portfolioChange');
+        const bestPerformerEl = document.getElementById('bestPerformer');
+        const worstPerformerEl = document.getElementById('worstPerformer');
+        
+        if (portfolioValue) portfolioValue.textContent = `$${totalValue.toLocaleString()}`;
+        if (portfolioChange) {
+            const avgChange = totalChange / userAssets.length;
+            portfolioChange.textContent = `${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(2)}%`;
+            portfolioChange.className = `metric-value ${avgChange >= 0 ? 'positive' : 'negative'}`;
+        }
+        if (bestPerformerEl) {
+            const assetInfo = this.api.getAssetInfo(bestPerformer.asset);
+            bestPerformerEl.textContent = assetInfo ? `${assetInfo.emoji} ${assetInfo.name} (+${bestPerformer.change.toFixed(2)}%)` : '-';
+        }
+        if (worstPerformerEl) {
+            const assetInfo = this.api.getAssetInfo(worstPerformer.asset);
+            worstPerformerEl.textContent = assetInfo ? `${assetInfo.emoji} ${assetInfo.name} (${worstPerformer.change.toFixed(2)}%)` : '-';
+        }
+    }
+
+    updatePredictions() {
+        const predictionCards = document.getElementById('predictionCards');
+        if (!predictionCards) return;
+        
+        predictionCards.innerHTML = '';
+        
+        const userAssets = this.api.getUserSelectedAssets().slice(0, 4);
+        userAssets.forEach(asset => {
+            const assetInfo = this.api.getAssetInfo(asset);
+            const history = this.storage.loadHistory(asset);
+            const prices = history.map(h => h.price).filter(p => p && !isNaN(p));
+            
+            if (prices.length > 0) {
+                const prediction = this.analytics.predictNextPrice(prices);
+                
+                const card = document.createElement('div');
+                card.className = 'prediction-card';
+                card.innerHTML = `
+                    <div class="prediction-header">
+                        <span class="prediction-asset">${assetInfo.emoji} ${assetInfo.name}</span>
+                        <span class="prediction-confidence">${prediction?.confidence || 0}% confidence</span>
+                    </div>
+                    <div class="prediction-value">
+                        Predicted: ${this.formatPrice(prediction?.value || 0, asset)}
+                    </div>
+                    <div class="prediction-method">
+                        Method: ${prediction?.method || 'N/A'}
+                    </div>
+                `;
+                
+                predictionCards.appendChild(card);
+            }
+        });
+    }
+
+    updateActiveAlerts() {
+        const activeAlerts = document.getElementById('activeAlerts');
+        if (!activeAlerts) return;
+        
+        const alerts = this.alerts.getActiveAlerts();
+        
+        if (alerts.length === 0) {
+            activeAlerts.innerHTML = '<p>No active alerts</p>';
+            return;
+        }
+        
+        activeAlerts.innerHTML = alerts.map(alert => {
+            const assetInfo = this.api.getAssetInfo(alert.asset);
+            return `
+                <div class="alert-item">
+                    <div class="alert-info">
+                        <span class="alert-asset">${assetInfo?.emoji} ${assetInfo?.name}</span>
+                        <span class="alert-condition">${alert.type} ${alert.value}</span>
+                    </div>
+                    <div class="alert-actions">
+                        <button onclick="window.universalTracker.alerts.toggleAlert('${alert.id}')" class="btn-tertiary">
+                            ${alert.active ? 'Disable' : 'Enable'}
+                        </button>
+                        <button onclick="window.universalTracker.alerts.removeAlert('${alert.id}'); window.universalTracker.updateActiveAlerts()" class="btn-danger">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     setupPerformanceMonitoring() {
@@ -1230,57 +1715,11 @@ class UniversalTracker {
     }
 
     showUpdateNotification(message) {
-        const notification = document.createElement('div');
-        notification.className = 'update-notification';
-        notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: var(--success);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            z-index: 10000;
-            font-size: 0.9em;
-            opacity: 0;
-            transform: translateY(-20px);
-            transition: all 0.3s ease;
-        `;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.style.opacity = '1';
-            notification.style.transform = 'translateY(0)';
-        }, 100);
-        
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateY(-20px)';
-            setTimeout(() => notification.remove(), 300);
-        }, 2000);
+        this.notifications.success(message, 2000);
     }
 
     showErrorNotification(message) {
-        const notification = document.createElement('div');
-        notification.className = 'error-notification';
-        notification.textContent = message;
-        notification.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: var(--danger);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            z-index: 10000;
-            font-size: 0.9em;
-        `;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => notification.remove(), 5000);
+        this.notifications.error(message, 5000);
     }
 
     announceToScreenReader(message) {
@@ -1399,6 +1838,86 @@ class UniversalTracker {
             }
         };
         reader.readAsText(file);
+    }
+}
+
+// ===== NEW GLOBAL FUNCTIONS =====
+function toggleAlerts() {
+    const alertsPanel = document.getElementById('alertsPanel');
+    if (alertsPanel) {
+        const isVisible = alertsPanel.style.display === 'block';
+        alertsPanel.style.display = isVisible ? 'none' : 'block';
+        
+        if (!isVisible && window.universalTracker) {
+            window.universalTracker.setupAlertsManagement();
+        }
+    }
+}
+
+function createAlert() {
+    const assetSelect = document.getElementById('alertAsset');
+    const typeSelect = document.getElementById('alertType');
+    const valueInput = document.getElementById('alertValue');
+    
+    if (!assetSelect.value || !typeSelect.value || !valueInput.value) {
+        window.universalTracker.notifications.warning('Please fill all alert fields', 3000);
+        return;
+    }
+    
+    const asset = assetSelect.value;
+    const type = typeSelect.value;
+    const value = parseFloat(valueInput.value);
+    
+    if (isNaN(value) || value <= 0) {
+        window.universalTracker.notifications.error('Please enter a valid value', 3000);
+        return;
+    }
+    
+    const assetInfo = window.universalTracker.api.getAssetInfo(asset);
+    const message = `${assetInfo.name} ${type} ${value}`;
+    
+    window.universalTracker.alerts.addAlert(asset, type, value, message);
+    window.universalTracker.notifications.success('Alert created successfully!', 3000);
+    
+    // Clear form
+    valueInput.value = '';
+    
+    // Update alerts list
+    window.universalTracker.updateActiveAlerts();
+}
+
+function toggleFullscreen() {
+    if (window.universalTracker) {
+        window.universalTracker.fullscreenManager.toggle();
+    }
+}
+
+function clearCache() {
+    if (confirm('Clear all cached data? This will remove price history and settings.')) {
+        // Clear localStorage
+        Object.keys(localStorage).forEach(key => {
+            if (key.includes('priceTracker') || key.includes('priceHistory') || key.includes('appSettings')) {
+                localStorage.removeItem(key);
+            }
+        });
+        
+        // Clear service worker cache
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+        }
+        
+        window.universalTracker.notifications.success('Cache cleared successfully!', 3000);
+        setTimeout(() => window.location.reload(), 1000);
+    }
+}
+
+function toggleShortcuts() {
+    const panel = document.getElementById('shortcutsPanel');
+    const toggle = document.getElementById('shortcutsToggle');
+    
+    if (panel && toggle) {
+        panel.classList.toggle('collapsed');
+        toggle.textContent = panel.classList.contains('collapsed') ? '▶' : '▼';
     }
 }
 

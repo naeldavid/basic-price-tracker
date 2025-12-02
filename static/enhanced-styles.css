@@ -1,0 +1,465 @@
+/* Enhanced Setup Page Styles */
+.setup-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.setup-progress {
+    margin: 20px 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+    width: 33%;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    text-align: center;
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.setup-step {
+    display: none;
+    animation: fadeInUp 0.3s ease;
+}
+
+.setup-step.active {
+    display: block;
+}
+
+.user-preferences {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--bg-tertiary);
+    border-radius: 5px;
+}
+
+.user-preferences h3 {
+    margin: 0 0 15px 0;
+    color: var(--accent-primary);
+}
+
+.user-preferences label {
+    display: block;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+.selection-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.selection-controls button {
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.step-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.btn-large {
+    padding: 15px 30px;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.setup-summary {
+    background: var(--bg-tertiary);
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--bg-primary);
+}
+
+.setup-features {
+    background: var(--bg-tertiary);
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.setup-features ul {
+    list-style: none;
+    padding: 0;
+}
+
+.setup-features li {
+    padding: 5px 0;
+    font-size: 1.1em;
+}
+
+.help-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    color: #333;
+    border: none;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    transition: all 0.2s ease;
+}
+
+.help-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+.help-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.tooltip-content {
+    background: var(--bg-secondary);
+    padding: 30px;
+    border-radius: 10px;
+    max-width: 500px;
+    text-align: center;
+    border: 2px solid var(--accent-primary);
+}
+
+.tooltip-content h4 {
+    color: var(--accent-primary);
+    margin-bottom: 15px;
+}
+
+.tooltip-content ul {
+    text-align: left;
+    margin: 15px 0;
+}
+
+.tooltip-content button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: var(--accent-primary);
+    color: #333;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Enhanced Notification Styles */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 350px;
+}
+
+.notification {
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent-primary);
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    animation: slideInRight 0.3s ease;
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.notification.success {
+    border-color: var(--success);
+}
+
+.notification.error {
+    border-color: var(--danger);
+}
+
+.notification.warning {
+    border-color: var(--warning);
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-message {
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.notification-action {
+    padding: 5px 12px;
+    font-size: 12px;
+    border: 1px solid var(--accent-secondary);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.notification-action:hover {
+    background: var(--accent-secondary);
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.notification-close:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+@keyframes slideOutRight {
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Enhanced Analytics Styles */
+.chart-controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.chart-controls select {
+    padding: 8px 12px;
+    border: 1px solid var(--bg-tertiary);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-radius: 3px;
+}
+
+.performance-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+.metric-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.metric-value {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.metric-value.positive {
+    color: var(--success);
+}
+
+.metric-value.negative {
+    color: var(--danger);
+}
+
+.prediction-card {
+    background: var(--bg-tertiary);
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    border-left: 4px solid var(--accent-primary);
+}
+
+.prediction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.prediction-asset {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.prediction-confidence {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.prediction-value {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--accent-primary);
+    margin-bottom: 5px;
+}
+
+.prediction-method {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+}
+
+.prediction-disclaimer {
+    background: var(--bg-tertiary);
+    padding: 15px;
+    border-radius: 5px;
+    margin-top: 20px;
+    border-left: 4px solid var(--warning);
+}
+
+.alert-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: var(--bg-primary);
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border: 1px solid var(--bg-tertiary);
+}
+
+.alert-info {
+    flex: 1;
+}
+
+.alert-asset {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.alert-condition {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.alert-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.alert-actions button {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+
+/* Fullscreen Styles */
+.fullscreen {
+    overflow: hidden;
+}
+
+.fullscreen .performance-monitor {
+    display: none;
+}
+
+.fullscreen .shortcuts-panel {
+    display: none;
+}
+
+/* Enhanced Mobile Styles */
+@media (max-width: 768px) {
+    .setup-step {
+        padding: 15px;
+    }
+    
+    .selection-controls {
+        flex-direction: column;
+    }
+    
+    .selection-controls button {
+        width: 100%;
+    }
+    
+    .step-actions {
+        flex-direction: column;
+    }
+    
+    .step-actions button {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .performance-metrics {
+        grid-template-columns: 1fr;
+    }
+    
+    .notification-container {
+        left: 10px;
+        right: 10px;
+        max-width: none;
+    }
+    
+    .help-button {
+        bottom: 80px;
+        right: 15px;
+    }
+    
+    .tooltip-content {
+        margin: 20px;
+        padding: 20px;
+    }
+}
