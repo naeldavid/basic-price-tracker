@@ -1525,63 +1525,37 @@ class ThemeManager {
         this.currentTheme = localStorage.getItem('selectedTheme') || 'dark';
         this.themes = {
             dark: {
-                name: 'Dark',
+                name: 'Dark Professional',
                 colors: {
-                    '--bg-primary': '#000000',
-                    '--bg-secondary': '#313131',
-                    '--bg-tertiary': 'rgba(255,255,255,0.1)',
-                    '--text-primary': '#ffffff',
-                    '--text-secondary': '#cccccc',
-                    '--accent-primary': '#dbba00',
-                    '--accent-secondary': '#91872c',
-                    '--success': '#28a745',
-                    '--danger': '#dc3545',
-                    '--warning': '#ffc107'
+                    '--bg-primary': '#0d1117',
+                    '--bg-secondary': '#161b22',
+                    '--bg-tertiary': '#21262d',
+                    '--text-primary': '#f0f6fc',
+                    '--text-secondary': '#8b949e',
+                    '--accent-primary': '#238636',
+                    '--accent-secondary': '#30363d',
+                    '--positive': '#238636',
+                    '--negative': '#da3633',
+                    '--warning': '#fb8500',
+                    '--border': '#30363d',
+                    '--shadow': 'rgba(0, 0, 0, 0.3)'
                 }
             },
             light: {
-                name: 'Light',
+                name: 'Light Professional',
                 colors: {
                     '--bg-primary': '#ffffff',
-                    '--bg-secondary': '#f8f9fa',
-                    '--bg-tertiary': 'rgba(0,0,0,0.05)',
-                    '--text-primary': '#333333',
-                    '--text-secondary': '#666666',
-                    '--accent-primary': '#dbba00',
-                    '--accent-secondary': '#91872c',
-                    '--success': '#28a745',
-                    '--danger': '#dc3545',
-                    '--warning': '#ffc107'
-                }
-            },
-            gold: {
-                name: 'Gold',
-                colors: {
-                    '--bg-primary': '#1a1a1a',
-                    '--bg-secondary': '#2d2d2d',
-                    '--bg-tertiary': 'rgba(219,186,0,0.1)',
-                    '--text-primary': '#dbba00',
-                    '--text-secondary': '#cccccc',
-                    '--accent-primary': '#ffd700',
-                    '--accent-secondary': '#b8860b',
-                    '--success': '#32cd32',
-                    '--danger': '#ff6347',
-                    '--warning': '#ffa500'
-                }
-            },
-            blue: {
-                name: 'Blue',
-                colors: {
-                    '--bg-primary': '#0d1421',
-                    '--bg-secondary': '#1e2a3a',
-                    '--bg-tertiary': 'rgba(59,130,246,0.1)',
-                    '--text-primary': '#ffffff',
-                    '--text-secondary': '#94a3b8',
-                    '--accent-primary': '#3b82f6',
-                    '--accent-secondary': '#1d4ed8',
-                    '--success': '#10b981',
-                    '--danger': '#ef4444',
-                    '--warning': '#f59e0b'
+                    '--bg-secondary': '#f6f8fa',
+                    '--bg-tertiary': '#f1f3f4',
+                    '--text-primary': '#24292f',
+                    '--text-secondary': '#656d76',
+                    '--accent-primary': '#0969da',
+                    '--accent-secondary': '#d0d7de',
+                    '--positive': '#1a7f37',
+                    '--negative': '#cf222e',
+                    '--warning': '#bf8700',
+                    '--border': '#d0d7de',
+                    '--shadow': 'rgba(0, 0, 0, 0.1)'
                 }
             }
         };
@@ -1630,6 +1604,15 @@ class ThemeManager {
         const selector = document.createElement('select');
         selector.id = 'themeSelector';
         selector.className = 'theme-selector';
+        selector.style.cssText = `
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+        `;
         
         this.getAvailableThemes().forEach(theme => {
             const option = document.createElement('option');
