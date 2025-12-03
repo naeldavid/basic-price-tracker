@@ -7,6 +7,7 @@
     <link rel="icon" type="image/x-icon" href="static/favicon.ico">
     <link rel="stylesheet" href="static/style.css">
     <link rel="stylesheet" href="static/enhanced-styles.css">
+    <link rel="stylesheet" href="static/enhanced-features.css">
 </head>
 <body>
     <div id="welcomeMessage" class="welcome-message" style="display: none;">
@@ -44,7 +45,17 @@
             <div class="metal-header" id="metalHeader">₿ Bitcoin</div>
             <div class="current-price" id="currentPrice">Loading...</div>
             <div class="price-change" id="priceChange"></div>
+            <div class="price-targets" id="priceTargets"></div>
             <div class="loading" id="loadingText">Fetching prices...</div>
+        </div>
+        
+        <!-- Quick Actions Bar -->
+        <div class="quick-actions" id="quickActions">
+            <button class="quick-btn" onclick="quickRefresh()" title="Quick Refresh">⚡</button>
+            <button class="quick-btn" onclick="toggleFavorite()" title="Add to Favorites">⭐</button>
+            <button class="quick-btn" onclick="sharePrice()" title="Share Price">📤</button>
+            <button class="quick-btn" onclick="toggleAutoSwitch()" title="Auto-Switch Mode">🔄</button>
+            <button class="quick-btn" onclick="togglePortfolioCalc()" title="Portfolio Calculator">💰</button>
         </div>
         
         <div class="multi-asset-overview" id="multiAssetOverview">
@@ -113,6 +124,33 @@
                 </div>
                 
                 <div class="setting-group">
+                    <h4>Portfolio & Currency</h4>
+                    <label>
+                        <input type="checkbox" id="enablePortfolioCalc"> Enable portfolio calculator
+                    </label>
+                    <label>
+                        Local Currency:
+                        <select id="localCurrency">
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="JPY">JPY (¥)</option>
+                            <option value="CAD">CAD (C$)</option>
+                            <option value="AUD">AUD (A$)</option>
+                        </select>
+                    </label>
+                    <label>
+                        Auto-switch interval:
+                        <select id="autoSwitchInterval">
+                            <option value="0">Disabled</option>
+                            <option value="3000">3 seconds</option>
+                            <option value="5000" selected>5 seconds</option>
+                            <option value="10000">10 seconds</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <div class="setting-group">
                     <h4>Data & Privacy</h4>
                     <button onclick="exportData()" class="btn-secondary">📤 Export Data</button>
                     <button onclick="importData()" class="btn-secondary">📥 Import Data</button>
@@ -171,6 +209,7 @@
                 <button class="analytics-tab" data-tab="indicators">Indicators</button>
                 <button class="analytics-tab" data-tab="portfolio">Portfolio</button>
                 <button class="analytics-tab" data-tab="predictions">Predictions</button>
+                <button class="analytics-tab" data-tab="correlation">Correlation</button>
             </div>
             
             <div class="analytics-content">
@@ -266,6 +305,37 @@
                         </div>
                     </div>
                 </div>
+                
+                <div class="analytics-panel" id="correlationPanel">
+                    <div class="correlation-content">
+                        <h4>Asset Correlation Matrix</h4>
+                        <div class="correlation-matrix" id="correlationMatrix"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio Calculator Modal -->
+    <div class="portfolio-calc-modal" id="portfolioCalcModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💰 Portfolio Calculator</h3>
+                <button class="close-btn" onclick="togglePortfolioCalc()">×</button>
+            </div>
+            <div class="portfolio-calc-content">
+                <div class="calc-form" id="calcForm"></div>
+                <div class="calc-summary" id="calcSummary">
+                    <h4>Portfolio Summary</h4>
+                    <div class="summary-item">
+                        <span>Total Value:</span>
+                        <span id="totalValue">$0.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>24h Change:</span>
+                        <span id="totalChange">$0.00 (0.00%)</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -352,6 +422,9 @@
         
         loadMainApp();
     </script>
+    
+    <!-- Load enhanced features -->
+    <script src="static/enhanced-features.js"></script>
     
 
 

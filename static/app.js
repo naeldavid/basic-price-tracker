@@ -794,6 +794,12 @@ class UniversalTracker {
             case 'predictions':
                 this.updatePredictions();
                 break;
+            case 'correlation':
+                if (!window.correlationMatrix) {
+                    window.correlationMatrix = new CorrelationMatrix(this);
+                }
+                window.correlationMatrix.render();
+                break;
         }
     }
 
@@ -1094,6 +1100,7 @@ class UniversalTracker {
             header.textContent = `${assetInfo.emoji} ${assetInfo.name}`;
         }
         
+        // Update current price from allPrices and refresh display
         this.currentPrice = this.allPrices[asset] || 0;
         this.updateDisplay();
         this.loadAssetHistory(asset);
@@ -1286,33 +1293,67 @@ class UniversalTracker {
         
         if (!priceElement) return;
         
-        if (!this.currentPrice || isNaN(this.currentPrice) || this.currentPrice <= 0) {
+        // Get the current price for the selected asset
+        const currentAssetPrice = this.allPrices[this.currentAsset];
+        
+        if (!currentAssetPrice || isNaN(currentAssetPrice) || currentAssetPrice <= 0) {
             priceElement.textContent = 'Loading price...';
             return;
         }
         
+        // Update the current price and display it
+        this.currentPrice = currentAssetPrice;
         priceElement.textContent = this.formatPrice(this.currentPrice, this.currentAsset);
+        
+        // Update price targets
+        this.updatePriceTargets();
 
-        if (changeElement && this.previousPrice > 0 && !isNaN(this.previousPrice)) {
-            const change = this.currentPrice - this.previousPrice;
-            const changePercent = ((change / this.previousPrice) * 100);
+        if (changeElement) {
+            // Use the same calculation as in the portfolio overview for consistency
+            const change = this.calculateChange(this.currentAsset);
             
-            if (!isNaN(change) && !isNaN(changePercent)) {
-                changeElement.textContent = `${change >= 0 ? '+' : ''}${this.formatPrice(Math.abs(change), this.currentAsset)} (${changePercent.toFixed(2)}%)`;
+            if (!isNaN(change)) {
+                const changeValue = (this.currentPrice * change) / 100;
+                changeElement.textContent = `${change >= 0 ? '+' : ''}${this.formatPrice(Math.abs(changeValue), this.currentAsset)} (${change.toFixed(2)}%)`;
                 changeElement.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
                 
                 // Add animation for significant changes
-                if (Math.abs(changePercent) > 2) {
+                if (Math.abs(change) > 2) {
                     changeElement.style.animation = 'flash 0.5s ease-in-out';
                     setTimeout(() => {
                         changeElement.style.animation = '';
                     }, 500);
                 }
+            } else {
+                changeElement.textContent = '';
             }
         }
         
         // Update page title with current price
         document.title = `${this.formatPrice(this.currentPrice, this.currentAsset)} - ${this.api.getAssetInfo(this.currentAsset)?.name || this.currentAsset} | Basic Price Tracker`;
+    }
+    
+    updatePriceTargets() {
+        const targetsEl = document.getElementById('priceTargets');
+        if (!targetsEl) return;
+        
+        const history = this.storage.loadHistory(this.currentAsset);
+        if (history.length < 10) {
+            targetsEl.innerHTML = '';
+            return;
+        }
+        
+        const prices = history.slice(0, 24).map(h => h.price);
+        const high24h = Math.max(...prices);
+        const low24h = Math.min(...prices);
+        const support = low24h * 1.02;
+        const resistance = high24h * 0.98;
+        
+        targetsEl.innerHTML = `
+            <div class="price-target support">Support: ${this.formatPrice(support, this.currentAsset)}</div>
+            <div class="price-target">24h Range</div>
+            <div class="price-target resistance">Resistance: ${this.formatPrice(resistance, this.currentAsset)}</div>
+        `;
     }
 
     async loadNews() {
