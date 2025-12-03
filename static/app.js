@@ -130,8 +130,8 @@ class CustomChart {
 
     createSVG() {
         this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        this.svg.setAttribute('width', this.width);
-        this.svg.setAttribute('height', this.height);
+        this.svg.setAttribute('width', String(this.width));
+        this.svg.setAttribute('height', String(this.height));
         this.svg.style.cssText = 'background: var(--bg-tertiary); border: 1px solid var(--accent-secondary);';
         
         // Add grid
@@ -148,10 +148,10 @@ class CustomChart {
         for (let i = 0; i <= 10; i++) {
             const x = this.margin.left + (i * (this.width - this.margin.left - this.margin.right) / 10);
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', x);
-            line.setAttribute('y1', this.margin.top);
-            line.setAttribute('x2', x);
-            line.setAttribute('y2', this.height - this.margin.bottom);
+            line.setAttribute('x1', String(x));
+            line.setAttribute('y1', String(this.margin.top));
+            line.setAttribute('x2', String(x));
+            line.setAttribute('y2', String(this.height - this.margin.bottom));
             line.setAttribute('stroke', 'var(--bg-tertiary)');
             line.setAttribute('stroke-width', '1');
             line.setAttribute('opacity', '0.3');
@@ -162,10 +162,10 @@ class CustomChart {
         for (let i = 0; i <= 8; i++) {
             const y = this.margin.top + (i * (this.height - this.margin.top - this.margin.bottom) / 8);
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', this.margin.left);
-            line.setAttribute('y1', y);
-            line.setAttribute('x2', this.width - this.margin.right);
-            line.setAttribute('y2', y);
+            line.setAttribute('x1', String(this.margin.left));
+            line.setAttribute('y1', String(y));
+            line.setAttribute('x2', String(this.width - this.margin.right));
+            line.setAttribute('y2', String(y));
             line.setAttribute('stroke', 'var(--bg-tertiary)');
             line.setAttribute('stroke-width', '1');
             line.setAttribute('opacity', '0.3');
@@ -257,7 +257,7 @@ class CustomChart {
         this.createAxesLabels(minPrice, maxPrice);
     }
 
-    createLegendItem(asset, color, index) {
+    createLegendItem(asset = '', color = '#000', index = 0) {
         const legendGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         legendGroup.setAttribute('class', 'chart-legend');
         
@@ -266,55 +266,55 @@ class CustomChart {
         
         // Legend color box
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        rect.setAttribute('x', x);
-        rect.setAttribute('y', y - 8);
-        rect.setAttribute('width', 12);
-        rect.setAttribute('height', 12);
+        rect.setAttribute('x', String(x));
+        rect.setAttribute('y', String(y - 8));
+        rect.setAttribute('width', '12');
+        rect.setAttribute('height', '12');
         rect.setAttribute('fill', color);
         legendGroup.appendChild(rect);
         
         // Legend text
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', x + 18);
-        text.setAttribute('y', y + 3);
+        text.setAttribute('x', String(x + 18));
+        text.setAttribute('y', String(y + 3));
         text.setAttribute('fill', 'var(--text-primary)');
         text.setAttribute('font-size', '12');
         text.setAttribute('font-family', 'Inter, sans-serif');
         text.textContent = asset.toUpperCase();
         legendGroup.appendChild(text);
         
-        this.svg.appendChild(legendGroup);
+        this.svg?.appendChild(legendGroup);
     }
 
-    createAxesLabels(minPrice, maxPrice) {
+    createAxesLabels(minPrice = 0, maxPrice = 100) {
         // Y-axis labels
         for (let i = 0; i <= 4; i++) {
             const price = minPrice + (i * (maxPrice - minPrice) / 4);
             const y = this.height - this.margin.bottom - (i * (this.height - this.margin.top - this.margin.bottom) / 4);
             
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', this.margin.left - 10);
-            text.setAttribute('y', y + 4);
+            text.setAttribute('x', String(this.margin.left - 10));
+            text.setAttribute('y', String(y + 4));
             text.setAttribute('text-anchor', 'end');
             text.setAttribute('fill', 'var(--text-secondary)');
             text.setAttribute('font-size', '10');
             text.setAttribute('font-family', 'Inter, sans-serif');
             text.textContent = `$${price.toFixed(0)}`;
             
-            this.svg.appendChild(text);
+            this.svg?.appendChild(text);
         }
         
         // X-axis label
         const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        xLabel.setAttribute('x', this.width / 2);
-        xLabel.setAttribute('y', this.height - 10);
+        xLabel.setAttribute('x', String(this.width / 2));
+        xLabel.setAttribute('y', String(this.height - 10));
         xLabel.setAttribute('text-anchor', 'middle');
         xLabel.setAttribute('fill', 'var(--text-secondary)');
         xLabel.setAttribute('font-size', '12');
         xLabel.setAttribute('font-family', 'Inter, sans-serif');
         xLabel.textContent = 'Time →';
         
-        this.svg.appendChild(xLabel);
+        this.svg?.appendChild(xLabel);
     }
 
     setupEventListeners() {
@@ -335,7 +335,7 @@ class CustomChart {
         });
     }
 
-    showTooltip(x, y) {
+    showTooltip(x = 0, y = 0) {
         // Remove existing tooltip
         this.hideTooltip();
         
@@ -346,36 +346,36 @@ class CustomChart {
         
         // Tooltip background
         const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        bg.setAttribute('x', x + 10);
-        bg.setAttribute('y', y - 20);
-        bg.setAttribute('width', 80);
-        bg.setAttribute('height', 30);
+        bg.setAttribute('x', String(x + 10));
+        bg.setAttribute('y', String(y - 20));
+        bg.setAttribute('width', '80');
+        bg.setAttribute('height', '30');
         bg.setAttribute('fill', 'var(--bg-secondary)');
         bg.setAttribute('stroke', 'var(--accent-primary)');
-        bg.setAttribute('rx', 3);
+        bg.setAttribute('rx', '3');
         tooltip.appendChild(bg);
         
         // Tooltip text
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', x + 15);
-        text.setAttribute('y', y - 5);
+        text.setAttribute('x', String(x + 15));
+        text.setAttribute('y', String(y - 5));
         text.setAttribute('fill', 'var(--text-primary)');
         text.setAttribute('font-size', '10');
         text.setAttribute('font-family', 'Inter, sans-serif');
         text.textContent = 'Hover data';
         tooltip.appendChild(text);
         
-        this.svg.appendChild(tooltip);
+        this.svg?.appendChild(tooltip);
     }
 
     hideTooltip() {
-        const tooltip = this.svg.querySelector('#chart-tooltip');
+        const tooltip = this.svg?.querySelector('#chart-tooltip');
         if (tooltip) {
             tooltip.remove();
         }
     }
 
-    resize(width, height) {
+    resize(width = 800, height = 400) {
         this.width = width || this.width;
         this.height = height || this.height;
         this.init();
@@ -416,11 +416,11 @@ class NotificationManager {
         }
     }
 
-    show(message, type = 'info', duration = this.defaultDuration, actions = []) {
+    show(message = '', type = 'info', duration = this.defaultDuration, actions = []) {
         const id = Date.now() + Math.random();
         const notification = this.createNotification(id, message, type, actions);
         
-        this.container.appendChild(notification);
+        this.container?.appendChild(notification);
         this.notifications.set(id, notification);
         
         // Auto-remove old notifications
@@ -437,7 +437,7 @@ class NotificationManager {
         return id;
     }
 
-    createNotification(id, message, type, actions) {
+    createNotification(id = '', message = '', type = 'info', actions = []) {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.setAttribute('role', 'alert');
@@ -481,7 +481,7 @@ class NotificationManager {
         return notification;
     }
 
-    remove(id) {
+    remove(id = '') {
         const notification = this.notifications.get(id);
         if (notification) {
             notification.style.animation = 'slideOutRight 0.3s ease';
@@ -498,19 +498,19 @@ class NotificationManager {
         this.notifications.forEach((_, id) => this.remove(id));
     }
 
-    success(message, duration) {
+    success(message = '', duration = 3000) {
         return this.show(message, 'success', duration);
     }
 
-    error(message, duration = 8000) {
+    error(message = '', duration = 8000) {
         return this.show(message, 'error', duration);
     }
 
-    warning(message, duration) {
+    warning(message = '', duration = 5000) {
         return this.show(message, 'warning', duration);
     }
 
-    info(message, duration) {
+    info(message = '', duration = 5000) {
         return this.show(message, 'info', duration);
     }
 }
