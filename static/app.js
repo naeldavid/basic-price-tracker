@@ -88,7 +88,7 @@ class CoinAnimation {
         this.isRunning = false;
     }
 
-    setSpeed(speed) {
+    setSpeed(speed: number) {
         this.animationSpeed = speed;
         if (this.isRunning) {
             this.stopAnimation();
@@ -107,7 +107,7 @@ class CoinAnimation {
 
 // ===== CUSTOM CHART CLASS =====
 class CustomChart {
-    constructor(containerId) {
+    constructor(containerId: string) {
         this.containerId = containerId;
         this.container = document.getElementById(containerId);
         this.data = {};
@@ -175,7 +175,7 @@ class CustomChart {
         this.svg.appendChild(gridGroup);
     }
 
-    update(data) {
+    update(data: any) {
         this.data = data;
         this.render();
     }
@@ -188,7 +188,7 @@ class CustomChart {
         existingPaths.forEach(el => el.remove());
         
         const assets = Object.keys(this.data);
-        const allPrices = [];
+        const allPrices: number[] = [];
         
         // Collect all prices for scaling
         assets.forEach(asset => {
@@ -208,11 +208,11 @@ class CustomChart {
         const priceRange = maxPrice - minPrice;
         
         // Create scales
-        this.scales.x = (index, maxIndex) => {
+        this.scales.x = (index: number, maxIndex: number) => {
             return this.margin.left + (index / maxIndex) * (this.width - this.margin.left - this.margin.right);
         };
         
-        this.scales.y = (price) => {
+        this.scales.y = (price: number) => {
             const normalized = (price - minPrice) / (priceRange || 1);
             return this.height - this.margin.bottom - (normalized * (this.height - this.margin.top - this.margin.bottom));
         };
@@ -257,7 +257,7 @@ class CustomChart {
         this.createAxesLabels(minPrice, maxPrice);
     }
 
-    createLegendItem(asset = '', color = '#000', index = 0) {
+    createLegendItem(asset: string = '', color: string = '#000', index: number = 0) {
         const legendGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         legendGroup.setAttribute('class', 'chart-legend');
         
@@ -416,7 +416,7 @@ class NotificationManager {
         }
     }
 
-    show(message = '', type = 'info', duration = this.defaultDuration, actions = []) {
+    show(message: string = '', type: string = 'info', duration: number = this.defaultDuration, actions: any[] = []) {
         const id = Date.now() + Math.random();
         const notification = this.createNotification(id, message, type, actions);
         
@@ -437,7 +437,7 @@ class NotificationManager {
         return id;
     }
 
-    createNotification(id = '', message = '', type = 'info', actions = []) {
+    createNotification(id: string = '', message: string = '', type: string = 'info', actions: any[] = []) {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.setAttribute('role', 'alert');
@@ -602,12 +602,29 @@ class UniversalTracker {
         this.setupVisibilityAPI();
         this.setupBackgroundSync();
         this.setupWebSocketConnections();
+        
+        // Ensure we have selected assets
+        const userAssets = this.api.getUserSelectedAssets();
+        if (userAssets.length === 0) {
+            // Set default assets if none selected
+            const defaultAssets = ['btc', 'eth', 'gold', 'usd_eur'];
+            this.api.saveUserSelection(defaultAssets);
+        }
+        
         this.setupCategoryTabs();
         this.setupAssetTabs();
         this.setupUI();
         this.setupKeyboardShortcuts();
         this.setupAdvancedFeatures();
         this.setupPWAFeatures();
+        this.setupErrorBoundary();
+        
+        // Initialize with fallback prices first
+        this.allPrices = { ...this.api.fallbackPrices };
+        this.currentPrice = this.allPrices[this.currentAsset] || 0;
+        this.updateDisplay();
+        this.updateAssetsOverview();
+        this.updatePerformanceDisplay();
         
         setTimeout(() => {
             this.fetchAllPrices();
@@ -615,6 +632,7 @@ class UniversalTracker {
             this.loadNews();
             this.initializeAlerts();
             this.hideLoadingSkeletons();
+            this.startPerformanceMonitoring();
         }, 100);
     }
 
@@ -670,7 +688,7 @@ class UniversalTracker {
         });
     }
 
-    handleWebSocketMessage(data) {
+    handleWebSocketMessage(data: any) {
         if (data.symbol && data.price) {
             const asset = this.mapSymbolToAsset(data.symbol);
             if (asset && this.allPrices[asset] !== data.price) {
@@ -681,7 +699,7 @@ class UniversalTracker {
         }
     }
 
-    mapSymbolToAsset(symbol) {
+    mapSymbolToAsset(symbol: string) {
         const symbolMap = {
             'BTCUSDT': 'btc',
             'ETHUSDT': 'eth',
@@ -705,7 +723,7 @@ class UniversalTracker {
         });
     }
 
-    showInstallPrompt(deferredPrompt) {
+    showInstallPrompt(deferredPrompt: any) {
         const installId = this.notifications.show(
             'Install Price Tracker for offline access and better performance',
             'info',
@@ -772,7 +790,7 @@ class UniversalTracker {
         });
     }
 
-    switchAnalyticsTab(tabName) {
+    switchAnalyticsTab(tabName: string) {
         document.querySelectorAll('.analytics-tab').forEach(tab => {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
@@ -993,6 +1011,54 @@ class UniversalTracker {
         });
     }
 
+    setupErrorBoundary() {
+        window.addEventListener('error', (event) => {
+            this.handleGlobalError(event.error, 'JavaScript Error');
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            this.handleGlobalError(event.reason, 'Promise Rejection');
+        });
+    }
+
+    handleGlobalError(error, type) {
+        console.error(`${type}:`, error);
+        
+        const errorBoundary = document.getElementById('errorBoundary');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        if (errorBoundary && errorMessage) {
+            errorMessage.textContent = `${type}: ${error.message || error}`;
+            errorBoundary.style.display = 'flex';
+        }
+        
+        // Auto-hide after 10 seconds for non-critical errors
+        if (!error.message?.includes('fetch') && !error.message?.includes('network')) {
+            setTimeout(() => {
+                if (errorBoundary) {
+                    errorBoundary.style.display = 'none';
+                }
+            }, 10000);
+        }
+    }
+
+    startPerformanceMonitoring() {
+        // Update performance display every 2 seconds
+        setInterval(() => {
+            this.updatePerformanceDisplay();
+        }, 2000);
+        
+        // Monitor memory usage
+        if (performance.memory) {
+            setInterval(() => {
+                const memoryUsage = Math.round(performance.memory.usedJSHeapSize / 1048576);
+                if (memoryUsage > 100) { // Alert if memory usage > 100MB
+                    console.warn(`High memory usage: ${memoryUsage}MB`);
+                }
+            }, 30000);
+        }
+    }
+
     setupAccessibility() {
         // Add ARIA labels and keyboard navigation
         document.addEventListener('keydown', (e) => {
@@ -1114,19 +1180,44 @@ class UniversalTracker {
         const startTime = Date.now();
         
         try {
+            // Show enhanced loading indicator
+            this.showLoadingOverlay('Fetching latest market data...');
+            
             const loadingText = document.getElementById('loadingText');
             if (loadingText) {
                 loadingText.style.display = 'block';
                 loadingText.textContent = 'Fetching latest prices...';
             }
             
-            this.allPrices = await this.api.fetchAllPrices();
-            
-            if (!this.allPrices || Object.keys(this.allPrices).length === 0) {
-                console.warn('API failed, using cached prices');
-                this.allPrices = this.api.lastPrices || this.api.fallbackPrices;
+            const userAssets = this.api.getUserSelectedAssets();
+            if (userAssets.length === 0) {
+                console.warn('No assets selected');
+                return;
             }
             
+            // Fetch prices for each asset individually
+            const newPrices = {};
+            for (const asset of userAssets) {
+                try {
+                    const price = await this.api.fetchPrice(asset);
+                    if (price && price > 0) {
+                        newPrices[asset] = price;
+                    } else {
+                        // Use fallback price if API fails
+                        newPrices[asset] = this.api.fallbackPrices[asset] || 0;
+                    }
+                } catch (error) {
+                    console.warn(`Failed to fetch ${asset}:`, error);
+                    newPrices[asset] = this.api.fallbackPrices[asset] || 0;
+                }
+            }
+            
+            // Update prices
+            this.allPrices = newPrices;
+            this.api.lastPrices = { ...newPrices };
+            this.api.saveLastPrices();
+            
+            // Update current asset price
             this.previousPrice = this.currentPrice;
             this.currentPrice = this.allPrices[this.currentAsset] || 0;
             
@@ -1144,14 +1235,18 @@ class UniversalTracker {
                 loadingText.style.display = 'none';
             }
             
-            this.showUpdateNotification('Prices updated successfully');
+            this.hideLoadingOverlay();
+            this.showUpdateNotification('✅ Prices updated successfully');
+            
+            // Update performance metrics display
+            this.updatePerformanceDisplay();
             
         } catch (error) {
             console.error('Error fetching prices:', error);
             this.performanceMetrics.failedUpdates++;
             
-            // Use cached prices as fallback
-            this.allPrices = this.api.lastPrices || this.api.fallbackPrices;
+            // Use fallback prices
+            this.allPrices = { ...this.api.fallbackPrices };
             this.currentPrice = this.allPrices[this.currentAsset] || 0;
             this.updateDisplay();
             this.updateAssetsOverview();
@@ -1161,7 +1256,8 @@ class UniversalTracker {
                 loadingText.style.display = 'none';
             }
             
-            this.showErrorNotification('Using cached prices - API temporarily unavailable');
+            this.hideLoadingOverlay();
+            this.showErrorNotification('⚠️ Using fallback prices - API temporarily unavailable');
         }
     }
 
@@ -1232,7 +1328,7 @@ class UniversalTracker {
         });
     }
 
-    calculateTrend(asset) {
+    calculateTrend(asset: string) {
         const history = this.storage.loadHistory(asset);
         if (!Array.isArray(history) || history.length < 3) return 0;
         
@@ -1247,7 +1343,7 @@ class UniversalTracker {
         return ((recentAvg - olderAvg) / olderAvg) * 100;
     }
 
-    formatPrice(price, asset) {
+    formatPrice(price: number, asset: string) {
         if (!price || isNaN(price)) return 'N/A';
         
         const assetInfo = this.api.getAssetInfo(asset);
@@ -1272,7 +1368,7 @@ class UniversalTracker {
         }
     }
 
-    calculateChange(asset) {
+    calculateChange(asset: string) {
         const history = this.storage.loadHistory(asset);
         const current = this.allPrices[asset] || 0;
         
@@ -1294,11 +1390,15 @@ class UniversalTracker {
         if (!priceElement) return;
         
         // Get the current price for the selected asset
-        const currentAssetPrice = this.allPrices[this.currentAsset];
+        let currentAssetPrice = this.allPrices[this.currentAsset];
         
+        // If no price available, use fallback
         if (!currentAssetPrice || isNaN(currentAssetPrice) || currentAssetPrice <= 0) {
-            priceElement.textContent = 'Loading price...';
-            return;
+            currentAssetPrice = this.api.fallbackPrices[this.currentAsset] || 0;
+            if (currentAssetPrice <= 0) {
+                priceElement.textContent = 'Price unavailable';
+                return;
+            }
         }
         
         // Update the current price and display it
@@ -1312,7 +1412,7 @@ class UniversalTracker {
             // Use the same calculation as in the portfolio overview for consistency
             const change = this.calculateChange(this.currentAsset);
             
-            if (!isNaN(change)) {
+            if (!isNaN(change) && Math.abs(change) > 0.01) {
                 const changeValue = (this.currentPrice * change) / 100;
                 changeElement.textContent = `${change >= 0 ? '+' : ''}${this.formatPrice(Math.abs(changeValue), this.currentAsset)} (${change.toFixed(2)}%)`;
                 changeElement.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
@@ -1325,12 +1425,14 @@ class UniversalTracker {
                     }, 500);
                 }
             } else {
-                changeElement.textContent = '';
+                changeElement.textContent = 'No change data';
+                changeElement.className = 'price-change';
             }
         }
         
         // Update page title with current price
-        document.title = `${this.formatPrice(this.currentPrice, this.currentAsset)} - ${this.api.getAssetInfo(this.currentAsset)?.name || this.currentAsset} | Basic Price Tracker`;
+        const assetInfo = this.api.getAssetInfo(this.currentAsset);
+        document.title = `${this.formatPrice(this.currentPrice, this.currentAsset)} - ${assetInfo?.name || this.currentAsset} | Basic Price Tracker`;
     }
     
     updatePriceTargets() {
@@ -1656,9 +1758,9 @@ class UniversalTracker {
         });
     }
 
-    generateSampleHistory(asset) {
+    generateSampleHistory(asset: string) {
         const basePrice = this.allPrices[asset] || this.api.fallbackPrices[asset] || 100;
-        const history = [];
+        const history: any[] = [];
         
         for (let i = 0; i < 50; i++) {
             const variation = (Math.random() - 0.5) * 0.1;
@@ -1689,7 +1791,7 @@ class UniversalTracker {
 
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+            if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'SELECT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
             
             switch(e.key.toLowerCase()) {
                 case ' ':
@@ -1755,15 +1857,62 @@ class UniversalTracker {
         }
     }
 
-    showUpdateNotification(message) {
+    showLoadingOverlay(message = 'Loading...') {
+        const overlay = document.getElementById('loadingOverlay');
+        const text = document.querySelector('.loading-text');
+        if (overlay && text) {
+            text.textContent = message;
+            overlay.style.display = 'flex';
+        }
+    }
+
+    hideLoadingOverlay() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+
+    updatePerformanceDisplay() {
+        const apiLatency = document.getElementById('apiLatency');
+        const updateCount = document.getElementById('updateCount');
+        const connectionStatus = document.getElementById('connectionStatus');
+        
+        if (apiLatency) {
+            const latencyText = apiLatency.querySelector('.metric-text');
+            if (latencyText) {
+                latencyText.textContent = `${this.performanceMetrics.averageResponseTime}ms`;
+            }
+        }
+        
+        if (updateCount) {
+            const countText = updateCount.querySelector('.metric-text');
+            if (countText) {
+                countText.textContent = String(this.updateCounter);
+            }
+        }
+        
+        if (connectionStatus) {
+            const statusDot = connectionStatus.querySelector('.status-dot');
+            const statusText = connectionStatus.querySelector('.status-text');
+            const isOnline = navigator.onLine;
+            
+            if (statusDot && statusText) {
+                statusDot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
+                statusText.textContent = isOnline ? 'Connected' : 'Offline';
+            }
+        }
+    }
+
+    showUpdateNotification(message: string) {
         this.notifications.success(message, 2000);
     }
 
-    showErrorNotification(message) {
+    showErrorNotification(message: string) {
         this.notifications.error(message, 5000);
     }
 
-    announceToScreenReader(message) {
+    announceToScreenReader(message: string) {
         const announcement = document.createElement('div');
         announcement.setAttribute('aria-live', 'polite');
         announcement.setAttribute('aria-atomic', 'true');
@@ -1844,11 +1993,11 @@ class UniversalTracker {
         URL.revokeObjectURL(url);
     }
 
-    importData(file) {
+    importData(file: File) {
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const data = JSON.parse(e.target.result);
+                const data = JSON.parse((e.target as FileReader).result as string);
                 
                 if (data.settings) {
                     this.storage.saveSettings(data.settings);

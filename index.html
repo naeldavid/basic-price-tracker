@@ -69,6 +69,9 @@
             <button class="btn-secondary" onclick="toggleSettings()">⚙️ Settings</button>
             <button class="btn-secondary" onclick="toggleNews()">📰 News</button>
             <button class="btn-secondary" onclick="toggleAdvanced()">📈 Advanced</button>
+            <button class="btn-secondary" onclick="togglePerformanceDashboard()">⚡ Performance</button>
+            <button class="btn-secondary" onclick="togglePriceTicker()">📺 Ticker</button>
+            <button class="btn-secondary" onclick="startVoiceCommands()">🎤 Voice</button>
         </div>
 
         <div class="history" id="historySection" style="display: none;">
@@ -264,7 +267,7 @@
                         </div>
                         <div class="stat-card">
                             <h4>Market Sentiment</h4>
-                            <span id="sentiment">Neutral</span>
+                            <div id="marketSentiment">Loading...</div>
                         </div>
                     </div>
                 </div>

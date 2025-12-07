@@ -1,337 +1,519 @@
-// Enhanced Features for Price Tracker
+// ===== ENHANCED FEATURES =====
 
-// Sound Manager for Alert Sounds
-class SoundManager {
+// Real-time Price Ticker
+class PriceTicker {
     constructor() {
-        this.sounds = {
-            up: this.createTone(800, 0.1),
-            down: this.createTone(400, 0.1),
-            alert: this.createTone(600, 0.2)
-        };
+        this.container = null;
+        this.isRunning = false;
+        this.speed = 50;
+        this.init();
     }
 
-    createTone(frequency, duration) {
-        return () => {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = frequency;
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + duration);
-        };
+    init() {
+        this.createTicker();
+        this.startTicker();
     }
 
-    play(type) {
-        if (this.sounds[type]) {
-            this.sounds[type]();
-        }
-    }
-}
+    createTicker() {
+        this.container = document.createElement('div');
+        this.container.id = 'priceTicker';
+        this.container.style.cssText = `
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--accent-primary);
+            overflow: hidden;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+        `;
 
-// Auto-Switch Manager
-class AutoSwitchManager {
-    constructor(tracker) {
-        this.tracker = tracker;
-        this.isActive = false;
-        this.interval = null;
-        this.currentIndex = 0;
-    }
+        const tickerContent = document.createElement('div');
+        tickerContent.id = 'tickerContent';
+        tickerContent.style.cssText = `
+            display: flex;
+            animation: scroll 30s linear infinite;
+            white-space: nowrap;
+            gap: 40px;
+        `;
 
-    start(intervalMs = 5000) {
-        if (this.isActive) return;
-        
-        this.isActive = true;
-        const assets = this.tracker.api.getUserSelectedAssets();
-        
-        this.interval = setInterval(() => {
-            if (assets.length > 1) {
-                this.currentIndex = (this.currentIndex + 1) % assets.length;
-                this.tracker.switchAsset(assets[this.currentIndex]);
+        this.container.appendChild(tickerContent);
+        document.body.appendChild(this.container);
+
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes scroll {
+                0% { transform: translateX(100%); }
+                100% { transform: translateX(-100%); }
             }
-        }, intervalMs);
+        `;
+        document.head.appendChild(style);
     }
 
-    stop() {
-        if (this.interval) {
-            clearInterval(this.interval);
-            this.interval = null;
-        }
-        this.isActive = false;
+    updateTicker(prices) {
+        const content = document.getElementById('tickerContent');
+        if (!content || !prices) return;
+
+        const items = Object.entries(prices).map(([asset, price]) => {
+            const assetInfo = window.universalTracker?.api.getAssetInfo(asset);
+            if (!assetInfo) return '';
+            
+            const change = window.universalTracker?.calculateChange(asset) || 0;
+            const changeClass = change >= 0 ? 'positive' : 'negative';
+            
+            return `
+                <span class="ticker-item">
+                    ${assetInfo.emoji} ${assetInfo.name}: 
+                    <strong>${window.universalTracker?.formatPrice(price, asset) || '$0'}</strong>
+                    <span class="${changeClass}">(${change >= 0 ? '+' : ''}${change.toFixed(2)}%)</span>
+                </span>
+            `;
+        }).join('');
+
+        content.innerHTML = items;
+    }
+
+    startTicker() {
+        this.isRunning = true;
+        setInterval(() => {
+            if (window.universalTracker?.allPrices) {
+                this.updateTicker(window.universalTracker.allPrices);
+            }
+        }, 5000);
     }
 
     toggle() {
-        if (this.isActive) {
-            this.stop();
-        } else {
-            const interval = parseInt(document.getElementById('autoSwitchInterval')?.value || 5000);
-            if (interval > 0) this.start(interval);
-        }
+        this.container.style.display = this.container.style.display === 'none' ? 'flex' : 'none';
     }
 }
 
-// Portfolio Calculator
-class PortfolioCalculator {
-    constructor(tracker) {
-        this.tracker = tracker;
-        this.holdings = JSON.parse(localStorage.getItem('portfolioHoldings') || '{}');
+// Advanced Chart with Technical Indicators
+class AdvancedChart extends CustomChart {
+    constructor(containerId) {
+        super(containerId);
+        this.indicators = {
+            sma: true,
+            ema: false,
+            bollinger: false,
+            rsi: false
+        };
+        this.timeframe = '1d';
+        this.chartType = 'candlestick';
     }
 
-    updateHolding(asset, quantity) {
-        this.holdings[asset] = parseFloat(quantity) || 0;
-        localStorage.setItem('portfolioHoldings', JSON.stringify(this.holdings));
-        this.updateSummary();
-    }
+    renderCandlestick(data) {
+        if (!data || !Array.isArray(data) || data.length === 0) return;
 
-    calculateTotal() {
-        let totalValue = 0;
-        let totalChange = 0;
-
-        Object.entries(this.holdings).forEach(([asset, quantity]) => {
-            const price = this.tracker.allPrices[asset] || 0;
-            const change = this.tracker.calculateChange(asset);
-            const value = price * quantity;
-            const changeValue = (value * change) / 100;
-
-            totalValue += value;
-            totalChange += changeValue;
-        });
-
-        return { totalValue, totalChange, changePercent: (totalChange / (totalValue - totalChange)) * 100 };
-    }
-
-    updateSummary() {
-        const { totalValue, totalChange, changePercent } = this.calculateTotal();
+        const candleWidth = (this.width - this.margin.left - this.margin.right) / data.length * 0.8;
         
-        document.getElementById('totalValue').textContent = `$${totalValue.toLocaleString()}`;
-        const changeEl = document.getElementById('totalChange');
-        changeEl.textContent = `${totalChange >= 0 ? '+' : ''}$${Math.abs(totalChange).toLocaleString()} (${changePercent.toFixed(2)}%)`;
-        changeEl.className = totalChange >= 0 ? 'positive' : 'negative';
-    }
-
-    renderForm() {
-        const form = document.getElementById('calcForm');
-        const assets = this.tracker.api.getUserSelectedAssets();
-        
-        form.innerHTML = assets.map(asset => {
-            const assetInfo = this.tracker.api.getAssetInfo(asset);
-            const price = this.tracker.allPrices[asset] || 0;
-            const holding = this.holdings[asset] || 0;
+        data.forEach((candle, index) => {
+            const x = this.margin.left + (index * (this.width - this.margin.left - this.margin.right) / data.length);
+            const high = this.scales.y(candle.high);
+            const low = this.scales.y(candle.low);
+            const open = this.scales.y(candle.open);
+            const close = this.scales.y(candle.close);
             
-            return `
-                <div class="calc-item">
-                    <div class="asset-info">
-                        <span>${assetInfo.emoji} ${assetInfo.name}</span>
-                        <span class="asset-price">$${price.toLocaleString()}</span>
-                    </div>
-                    <input type="number" 
-                           placeholder="Quantity" 
-                           value="${holding}"
-                           step="0.00001"
-                           onchange="window.portfolioCalc.updateHolding('${asset}', this.value)">
-                </div>
-            `;
-        }).join('');
-        
-        this.updateSummary();
+            const isGreen = candle.close > candle.open;
+            const color = isGreen ? var(--positive) : var(--negative);
+            
+            // High-Low line
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', String(x + candleWidth / 2));
+            line.setAttribute('y1', String(high));
+            line.setAttribute('x2', String(x + candleWidth / 2));
+            line.setAttribute('y2', String(low));
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', '1');
+            
+            // Body rectangle
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', String(x));
+            rect.setAttribute('y', String(Math.min(open, close)));
+            rect.setAttribute('width', String(candleWidth));
+            rect.setAttribute('height', String(Math.abs(close - open)));
+            rect.setAttribute('fill', isGreen ? 'none' : color);
+            rect.setAttribute('stroke', color);
+            rect.setAttribute('stroke-width', '1');
+            
+            this.svg?.appendChild(line);
+            this.svg?.appendChild(rect);
+        });
+    }
+
+    addIndicator(type, params = {}) {
+        this.indicators[type] = true;
+        this.render();
+    }
+
+    removeIndicator(type) {
+        this.indicators[type] = false;
+        this.render();
     }
 }
 
-// Correlation Matrix Calculator
-class CorrelationMatrix {
-    constructor(tracker) {
-        this.tracker = tracker;
+// Smart Notifications with Priority
+class SmartNotificationManager extends NotificationManager {
+    constructor() {
+        super();
+        this.priorities = {
+            critical: 1,
+            high: 2,
+            medium: 3,
+            low: 4
+        };
+        this.queue = [];
+        this.isProcessing = false;
     }
 
-    calculateCorrelation(asset1, asset2) {
-        const history1 = this.tracker.storage.loadHistory(asset1).slice(0, 30);
-        const history2 = this.tracker.storage.loadHistory(asset2).slice(0, 30);
+    show(message, type = 'info', duration = 5000, priority = 'medium', actions = []) {
+        const notification = {
+            message,
+            type,
+            duration,
+            priority: this.priorities[priority] || 3,
+            actions,
+            timestamp: Date.now()
+        };
+
+        this.queue.push(notification);
+        this.queue.sort((a, b) => a.priority - b.priority);
         
-        if (history1.length < 10 || history2.length < 10) return 0;
+        if (!this.isProcessing) {
+            this.processQueue();
+        }
+    }
+
+    async processQueue() {
+        this.isProcessing = true;
         
-        const prices1 = history1.map(h => h.price);
-        const prices2 = history2.map(h => h.price);
-        
-        const n = Math.min(prices1.length, prices2.length);
-        const mean1 = prices1.reduce((a, b) => a + b) / n;
-        const mean2 = prices2.reduce((a, b) => a + b) / n;
-        
-        let numerator = 0;
-        let sum1 = 0;
-        let sum2 = 0;
-        
-        for (let i = 0; i < n; i++) {
-            const diff1 = prices1[i] - mean1;
-            const diff2 = prices2[i] - mean2;
-            numerator += diff1 * diff2;
-            sum1 += diff1 * diff1;
-            sum2 += diff2 * diff2;
+        while (this.queue.length > 0) {
+            const notification = this.queue.shift();
+            await this.displayNotification(notification);
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
         
-        const denominator = Math.sqrt(sum1 * sum2);
-        return denominator === 0 ? 0 : numerator / denominator;
+        this.isProcessing = false;
+    }
+
+    async displayNotification(notification) {
+        return new Promise(resolve => {
+            const id = super.show(
+                notification.message,
+                notification.type,
+                notification.duration,
+                notification.actions
+            );
+            
+            setTimeout(resolve, notification.duration || 5000);
+        });
+    }
+
+    critical(message, actions = []) {
+        return this.show(message, 'error', 0, 'critical', actions);
+    }
+
+    high(message, duration = 8000) {
+        return this.show(message, 'warning', duration, 'high');
+    }
+}
+
+// Performance Analytics Dashboard
+class PerformanceDashboard {
+    constructor() {
+        this.metrics = {
+            loadTime: 0,
+            apiResponseTime: [],
+            memoryUsage: 0,
+            errorRate: 0,
+            cacheHitRate: 0
+        };
+        this.isVisible = false;
+        this.init();
+    }
+
+    init() {
+        this.createDashboard();
+        this.startMonitoring();
+    }
+
+    createDashboard() {
+        const dashboard = document.createElement('div');
+        dashboard.id = 'performanceDashboard';
+        dashboard.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 300px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            z-index: 10000;
+            display: none;
+            font-size: 12px;
+        `;
+
+        dashboard.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h4 style="margin: 0; color: var(--accent-primary);">Performance</h4>
+                <button onclick="this.parentElement.parentElement.style.display='none'" style="background: none; border: none; color: var(--text-primary); cursor: pointer;">×</button>
+            </div>
+            <div id="performanceMetrics"></div>
+        `;
+
+        document.body.appendChild(dashboard);
+    }
+
+    updateMetrics(newMetrics) {
+        Object.assign(this.metrics, newMetrics);
+        this.render();
     }
 
     render() {
-        const assets = this.tracker.api.getUserSelectedAssets().slice(0, 6);
-        const matrix = document.getElementById('correlationMatrix');
-        
-        let html = '<table class="correlation-table"><tr><th></th>';
-        assets.forEach(asset => {
-            const info = this.tracker.api.getAssetInfo(asset);
-            html += `<th>${info.emoji}</th>`;
-        });
-        html += '</tr>';
-        
-        assets.forEach(asset1 => {
-            const info1 = this.tracker.api.getAssetInfo(asset1);
-            html += `<tr><td>${info1.emoji} ${info1.name}</td>`;
-            
-            assets.forEach(asset2 => {
-                const correlation = asset1 === asset2 ? 1 : this.calculateCorrelation(asset1, asset2);
-                const color = correlation > 0.5 ? 'strong-positive' : 
-                             correlation > 0.2 ? 'positive' :
-                             correlation < -0.5 ? 'strong-negative' :
-                             correlation < -0.2 ? 'negative' : 'neutral';
-                
-                html += `<td class="correlation-cell ${color}">${correlation.toFixed(2)}</td>`;
-            });
-            html += '</tr>';
-        });
-        html += '</table>';
-        
-        matrix.innerHTML = html;
+        const container = document.getElementById('performanceMetrics');
+        if (!container) return;
+
+        const avgResponseTime = this.metrics.apiResponseTime.length > 0 
+            ? this.metrics.apiResponseTime.reduce((a, b) => a + b, 0) / this.metrics.apiResponseTime.length 
+            : 0;
+
+        container.innerHTML = `
+            <div style="margin: 8px 0;">
+                <strong>Load Time:</strong> ${this.metrics.loadTime}ms
+            </div>
+            <div style="margin: 8px 0;">
+                <strong>API Response:</strong> ${avgResponseTime.toFixed(0)}ms
+            </div>
+            <div style="margin: 8px 0;">
+                <strong>Memory:</strong> ${this.metrics.memoryUsage}MB
+            </div>
+            <div style="margin: 8px 0;">
+                <strong>Error Rate:</strong> ${this.metrics.errorRate.toFixed(1)}%
+            </div>
+            <div style="margin: 8px 0;">
+                <strong>Cache Hit:</strong> ${this.metrics.cacheHitRate.toFixed(1)}%
+            </div>
+        `;
     }
-}
 
-// Mini Chart Generator
-class MiniChart {
-    static generate(prices, width = 60, height = 20) {
-        if (!prices || prices.length < 2) return '';
-        
-        const max = Math.max(...prices);
-        const min = Math.min(...prices);
-        const range = max - min || 1;
-        
-        let path = '';
-        prices.forEach((price, i) => {
-            const x = (i / (prices.length - 1)) * width;
-            const y = height - ((price - min) / range) * height;
-            path += i === 0 ? `M${x},${y}` : ` L${x},${y}`;
-        });
-        
-        return `<svg width="${width}" height="${height}" class="mini-chart">
-                    <path d="${path}" stroke="currentColor" fill="none" stroke-width="1"/>
-                </svg>`;
-    }
-}
-
-// Global Functions
-function quickRefresh() {
-    window.universalTracker?.fetchAllPrices();
-    window.soundManager?.play('alert');
-}
-
-function toggleFavorite() {
-    const asset = window.universalTracker?.currentAsset;
-    if (!asset) return;
-    
-    let favorites = JSON.parse(localStorage.getItem('favoriteAssets') || '[]');
-    const index = favorites.indexOf(asset);
-    
-    if (index > -1) {
-        favorites.splice(index, 1);
-        window.universalTracker.notifications.info(`Removed ${asset.toUpperCase()} from favorites`);
-    } else {
-        favorites.push(asset);
-        window.universalTracker.notifications.success(`Added ${asset.toUpperCase()} to favorites`);
-    }
-    
-    localStorage.setItem('favoriteAssets', JSON.stringify(favorites));
-}
-
-function sharePrice() {
-    const tracker = window.universalTracker;
-    if (!tracker) return;
-    
-    const asset = tracker.api.getAssetInfo(tracker.currentAsset);
-    const price = tracker.formatPrice(tracker.currentPrice, tracker.currentAsset);
-    const change = tracker.calculateChange(tracker.currentAsset);
-    
-    const text = `${asset.emoji} ${asset.name}: ${price} (${change >= 0 ? '+' : ''}${change.toFixed(2)}%) - Basic Price Tracker`;
-    
-    if (navigator.share) {
-        navigator.share({ title: 'Price Update', text, url: window.location.href });
-    } else {
-        navigator.clipboard.writeText(text);
-        tracker.notifications.success('Price copied to clipboard!');
-    }
-}
-
-function toggleAutoSwitch() {
-    if (!window.autoSwitchManager) {
-        window.autoSwitchManager = new AutoSwitchManager(window.universalTracker);
-    }
-    window.autoSwitchManager.toggle();
-    
-    const btn = document.querySelector('[onclick="toggleAutoSwitch()"]');
-    btn.style.opacity = window.autoSwitchManager.isActive ? '1' : '0.6';
-}
-
-function togglePortfolioCalc() {
-    const modal = document.getElementById('portfolioCalcModal');
-    const isVisible = modal.style.display === 'block';
-    modal.style.display = isVisible ? 'none' : 'block';
-    
-    if (!isVisible) {
-        if (!window.portfolioCalc) {
-            window.portfolioCalc = new PortfolioCalculator(window.universalTracker);
-        }
-        window.portfolioCalc.renderForm();
-    }
-}
-
-// Initialize enhanced features
-document.addEventListener('DOMContentLoaded', () => {
-    window.soundManager = new SoundManager();
-    
-    // Add mini charts to portfolio cards
-    const observer = new MutationObserver(() => {
-        document.querySelectorAll('.asset-card').forEach(card => {
-            if (!card.querySelector('.mini-chart')) {
-                const asset = card.onclick?.toString().match(/'(\w+)'/)?.[1];
-                if (asset) {
-                    const history = window.universalTracker?.storage.loadHistory(asset) || [];
-                    const prices = history.slice(0, 10).map(h => h.price);
-                    if (prices.length > 1) {
-                        const chartHtml = MiniChart.generate(prices);
-                        const priceDiv = card.querySelector('[style*="font-size: 1.1em"]');
-                        if (priceDiv) priceDiv.insertAdjacentHTML('afterend', chartHtml);
-                    }
-                }
+    startMonitoring() {
+        setInterval(() => {
+            if (window.universalTracker?.performanceMetrics) {
+                this.updateMetrics({
+                    apiResponseTime: [window.universalTracker.performanceMetrics.averageResponseTime],
+                    errorRate: window.universalTracker.performanceMetrics.failedUpdates / 
+                              (window.universalTracker.performanceMetrics.successfulUpdates + window.universalTracker.performanceMetrics.failedUpdates) * 100
+                });
             }
+
+            if (performance.memory) {
+                this.updateMetrics({
+                    memoryUsage: Math.round(performance.memory.usedJSHeapSize / 1048576)
+                });
+            }
+        }, 2000);
+    }
+
+    toggle() {
+        const dashboard = document.getElementById('performanceDashboard');
+        if (dashboard) {
+            this.isVisible = !this.isVisible;
+            dashboard.style.display = this.isVisible ? 'block' : 'none';
+        }
+    }
+}
+
+// Voice Commands
+class VoiceCommands {
+    constructor() {
+        this.recognition = null;
+        this.isListening = false;
+        this.commands = {
+            'refresh prices': () => window.universalTracker?.fetchAllPrices(),
+            'show history': () => toggleHistory(),
+            'open settings': () => toggleSettings(),
+            'show news': () => toggleNews(),
+            'switch theme': () => window.universalTracker?.themes.applyTheme(window.universalTracker.getNextTheme()),
+            'show bitcoin': () => window.universalTracker?.switchAsset('btc'),
+            'show gold': () => window.universalTracker?.switchAsset('gold'),
+            'show ethereum': () => window.universalTracker?.switchAsset('eth')
+        };
+        this.init();
+    }
+
+    init() {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            this.recognition = new SpeechRecognition();
+            this.recognition.continuous = false;
+            this.recognition.interimResults = false;
+            this.recognition.lang = 'en-US';
+
+            this.recognition.onresult = (event) => {
+                const command = event.results[0][0].transcript.toLowerCase();
+                this.processCommand(command);
+            };
+
+            this.recognition.onerror = (event) => {
+                console.warn('Speech recognition error:', event.error);
+            };
+
+            this.addVoiceButton();
+        }
+    }
+
+    addVoiceButton() {
+        const button = document.createElement('button');
+        button.innerHTML = '🎤';
+        button.className = 'btn-secondary';
+        button.style.cssText = `
+            position: fixed;
+            bottom: 60px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            z-index: 1000;
+        `;
+        button.onclick = () => this.toggleListening();
+        document.body.appendChild(button);
+    }
+
+    toggleListening() {
+        if (this.isListening) {
+            this.recognition?.stop();
+            this.isListening = false;
+        } else {
+            this.recognition?.start();
+            this.isListening = true;
+        }
+    }
+
+    processCommand(command) {
+        const matchedCommand = Object.keys(this.commands).find(cmd => 
+            command.includes(cmd.toLowerCase())
+        );
+
+        if (matchedCommand) {
+            this.commands[matchedCommand]();
+            window.universalTracker?.notifications?.success(`Executed: ${matchedCommand}`, 2000);
+        } else {
+            window.universalTracker?.notifications?.warning('Command not recognized', 2000);
+        }
+    }
+}
+
+// Market Sentiment Analyzer
+class SentimentAnalyzer {
+    constructor() {
+        this.sentimentData = {};
+        this.newsKeywords = {
+            bullish: ['surge', 'rally', 'bull', 'rise', 'gain', 'up', 'high', 'positive'],
+            bearish: ['crash', 'fall', 'bear', 'drop', 'decline', 'down', 'low', 'negative'],
+            neutral: ['stable', 'steady', 'unchanged', 'flat', 'sideways']
+        };
+    }
+
+    analyzeNews(articles) {
+        if (!articles || !Array.isArray(articles)) return { sentiment: 'neutral', confidence: 50 };
+
+        let bullishScore = 0;
+        let bearishScore = 0;
+        let totalWords = 0;
+
+        articles.forEach(article => {
+            const text = (article.title + ' ' + (article.description || '')).toLowerCase();
+            const words = text.split(/\s+/);
+            totalWords += words.length;
+
+            words.forEach(word => {
+                if (this.newsKeywords.bullish.some(keyword => word.includes(keyword))) {
+                    bullishScore++;
+                }
+                if (this.newsKeywords.bearish.some(keyword => word.includes(keyword))) {
+                    bearishScore++;
+                }
+            });
         });
-    });
-    
-    observer.observe(document.getElementById('assetsGrid') || document.body, { childList: true, subtree: true });
+
+        const totalSentimentWords = bullishScore + bearishScore;
+        if (totalSentimentWords === 0) return { sentiment: 'neutral', confidence: 50 };
+
+        const bullishRatio = bullishScore / totalSentimentWords;
+        const confidence = Math.min(95, (totalSentimentWords / totalWords) * 100 * 10);
+
+        if (bullishRatio > 0.6) {
+            return { sentiment: 'bullish', confidence: Math.round(confidence) };
+        } else if (bullishRatio < 0.4) {
+            return { sentiment: 'bearish', confidence: Math.round(confidence) };
+        } else {
+            return { sentiment: 'neutral', confidence: Math.round(confidence) };
+        }
+    }
+
+    displaySentiment(sentiment) {
+        const container = document.getElementById('marketSentiment');
+        if (!container) return;
+
+        const emoji = {
+            bullish: '🐂',
+            bearish: '🐻',
+            neutral: '😐'
+        };
+
+        const color = {
+            bullish: 'var(--positive)',
+            bearish: 'var(--negative)',
+            neutral: 'var(--text-secondary)'
+        };
+
+        container.innerHTML = `
+            <div style="text-align: center; padding: 16px; background: var(--bg-tertiary); border-radius: 8px;">
+                <div style="font-size: 2em; margin-bottom: 8px;">${emoji[sentiment.sentiment]}</div>
+                <div style="font-weight: 600; color: ${color[sentiment.sentiment]}; text-transform: capitalize;">
+                    ${sentiment.sentiment} Sentiment
+                </div>
+                <div style="font-size: 0.9em; color: var(--text-secondary); margin-top: 4px;">
+                    ${sentiment.confidence}% Confidence
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Initialize Enhanced Features
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for main app to initialize
+    setTimeout(() => {
+        if (window.universalTracker) {
+            // Initialize enhanced features
+            window.priceTicker = new PriceTicker();
+            window.smartNotifications = new SmartNotificationManager();
+            window.performanceDashboard = new PerformanceDashboard();
+            window.voiceCommands = new VoiceCommands();
+            window.sentimentAnalyzer = new SentimentAnalyzer();
+
+            // Replace default notification manager
+            window.universalTracker.notifications = window.smartNotifications;
+
+            console.log('Enhanced features initialized');
+        }
+    }, 2000);
 });
 
-// Enhanced alert system with sounds
-if (window.universalTracker) {
-    const originalCheckAlerts = window.universalTracker.checkPriceAlerts;
-    window.universalTracker.checkPriceAlerts = function() {
-        const result = originalCheckAlerts.call(this);
-        if (result && result.length > 0) {
-            window.soundManager?.play('alert');
-        }
-        return result;
-    };
+// Global functions for enhanced features
+function togglePerformanceDashboard() {
+    window.performanceDashboard?.toggle();
+}
+
+function togglePriceTicker() {
+    window.priceTicker?.toggle();
+}
+
+function startVoiceCommands() {
+    window.voiceCommands?.toggleListening();
 }

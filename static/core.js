@@ -21,7 +21,7 @@ class WebSocketManager {
         });
     }
 
-    connect(url, options = {}) {
+    connect(url: string, options: any = {}) {
         if (!this.isOnline) return null;
         
         try {
@@ -65,7 +65,7 @@ class WebSocketManager {
         }
     }
 
-    attemptReconnect(url, options) {
+    attemptReconnect(url: string, options: any) {
         if (!this.isOnline || this.reconnectAttempts >= this.maxReconnectAttempts) {
             return;
         }
@@ -94,7 +94,7 @@ class WebSocketManager {
         this.connections.clear();
     }
 
-    send(connectionId, data) {
+    send(connectionId: string, data: any) {
         const connection = this.connections.get(connectionId);
         if (connection && connection.ws.readyState === WebSocket.OPEN) {
             connection.ws.send(JSON.stringify(data));
@@ -135,7 +135,7 @@ class PerformanceMonitor {
         }
     }
 
-    recordApiCall(responseTime, success = true) {
+    recordApiCall(responseTime: number, success: boolean = true) {
         this.metrics.apiCalls++;
         this.metrics.totalResponseTime += responseTime;
         this.metrics.averageResponseTime = this.metrics.totalResponseTime / this.metrics.apiCalls;
@@ -179,7 +179,7 @@ class PerformanceMonitor {
         };
     }
 
-    addObserver(callback) {
+    addObserver(callback: any) {
         this.observers.push(callback);
     }
 
@@ -308,7 +308,7 @@ class UniversalAPI {
         }
     }
 
-    handleServiceWorkerMessage(data) {
+    handleServiceWorkerMessage(data: any) {
         switch (data.type) {
             case 'BACKGROUND_SYNC':
                 if (data.action === 'PRICE_UPDATE_AVAILABLE') {
@@ -323,7 +323,7 @@ class UniversalAPI {
         window.dispatchEvent(new CustomEvent('backgroundPriceUpdate'));
     }
 
-    async fetchWithTimeout(url, timeout = 8000) {
+    async fetchWithTimeout(url: string, timeout: number = 8000) {
         // Check circuit breaker
         if (this.circuitBreaker.state === 'OPEN') {
             if (Date.now() - this.circuitBreaker.lastFailure < this.circuitBreaker.timeout) {
@@ -399,7 +399,7 @@ class UniversalAPI {
         }
     }
 
-    async queueRequest(requestFn) {
+    async queueRequest(requestFn: any) {
         return new Promise((resolve, reject) => {
             this.requestQueue.push({ requestFn, resolve, reject });
             this.processQueue();
@@ -428,7 +428,7 @@ class UniversalAPI {
         this.isProcessingQueue = false;
     }
 
-    async fetchCryptoPrice(asset = 'btc') {
+    async fetchCryptoPrice(asset: string = 'btc') {
         const symbols = { 
             btc: 'BTC-USD', eth: 'ETH-USD', bnb: 'BNB-USD', ada: 'ADA-USD', 
             sol: 'SOL-USD', xrp: 'XRP-USD', dot: 'DOT-USD', doge: 'DOGE-USD', 
@@ -451,7 +451,7 @@ class UniversalAPI {
         throw new Error(`Failed to fetch ${asset} price`);
     }
 
-    async fetchMetalPrice(asset) {
+    async fetchMetalPrice(asset: string) {
         const symbols = {
             gold: 'GC=F', silver: 'SI=F', platinum: 'PL=F', palladium: 'PA=F'
         };
@@ -472,7 +472,7 @@ class UniversalAPI {
         throw new Error(`Failed to fetch ${asset} price`);
     }
 
-    async fetchForexPrice(asset) {
+    async fetchForexPrice(asset: string) {
         const symbols = {
             usd_eur: 'EURUSD=X', usd_gbp: 'GBPUSD=X', usd_jpy: 'USDJPY=X', usd_cad: 'USDCAD=X',
             usd_aud: 'AUDUSD=X', usd_chf: 'USDCHF=X', usd_cny: 'USDCNY=X', usd_inr: 'USDINR=X',
@@ -499,7 +499,7 @@ class UniversalAPI {
         throw new Error(`Failed to fetch ${asset} rate`);
     }
 
-    getBigMacPrice(asset) {
+    getBigMacPrice(asset: string) {
         const realPrices = {
             bigmac_us: 5.69, bigmac_uk: 4.89, bigmac_jp: 450, 
             bigmac_eu: 5.15, bigmac_ca: 6.77
@@ -514,7 +514,7 @@ class UniversalAPI {
         return price;
     }
 
-    async fetchPrice(asset) {
+    async fetchPrice(asset: string) {
         const assetInfo = this.assets[asset];
         if (!assetInfo) return this.fallbackPrices[asset] || 0;
 
@@ -541,15 +541,25 @@ class UniversalAPI {
         const prices = {};
         const assets = this.userSelectedAssets;
         
+        if (assets.length === 0) {
+            console.warn('No assets selected for fetching');
+            return this.fallbackPrices;
+        }
+        
         for (const asset of assets) {
             try {
-                prices[asset] = await this.fetchPrice(asset);
-                console.log(`Fetched ${asset}: ${prices[asset]}`);
+                const price = await this.fetchPrice(asset);
+                prices[asset] = price;
+                console.log(`Fetched ${asset}: ${price}`);
             } catch (error) {
-                console.error(`Failed to fetch ${asset}:`, error);
-                throw error;
+                console.warn(`Failed to fetch ${asset}:`, error);
+                prices[asset] = this.lastPrices[asset] || this.fallbackPrices[asset] || 0;
             }
         }
+        
+        // Update last prices cache
+        this.lastPrices = { ...this.lastPrices, ...prices };
+        this.saveLastPrices();
         
         return prices;
     }
@@ -590,7 +600,7 @@ class UniversalAPI {
         }
     }
 
-    saveUserSelection(selectedAssets) {
+    saveUserSelection(selectedAssets: string[]) {
         this.userSelectedAssets = selectedAssets;
         try {
             localStorage.setItem('userSelectedAssets', JSON.stringify(selectedAssets));
@@ -603,7 +613,7 @@ class UniversalAPI {
         return this.userSelectedAssets;
     }
 
-    setBaseCurrency(currency) {
+    setBaseCurrency(currency: string) {
         this.baseCurrency = currency;
         try {
             localStorage.setItem('baseCurrency', currency);
@@ -616,7 +626,7 @@ class UniversalAPI {
         return this.baseCurrency;
     }
 
-    getAssetInfo(asset) {
+    getAssetInfo(asset: string) {
         return this.assets[asset];
     }
 
@@ -624,7 +634,7 @@ class UniversalAPI {
         return Object.keys(this.assets);
     }
 
-    getAssetsByType(type) {
+    getAssetsByType(type: string) {
         return Object.keys(this.assets).filter(asset => this.assets[asset].type === type);
     }
 
@@ -648,7 +658,7 @@ class DataStorage {
         this.compressionEnabled = true;
     }
 
-    compress(data) {
+    compress(data: any) {
         if (!this.compressionEnabled) return JSON.stringify(data);
         
         try {
@@ -661,7 +671,7 @@ class DataStorage {
         }
     }
 
-    decompress(compressedData) {
+    decompress(compressedData: string) {
         if (!this.compressionEnabled) return JSON.parse(compressedData);
         
         try {
@@ -673,7 +683,7 @@ class DataStorage {
         }
     }
 
-    saveHistory(history, asset = 'default') {
+    saveHistory(history: any[], asset: string = 'default') {
         try {
             const key = `${this.historyKey}_${asset}`;
             const limitedHistory = history.slice(0, this.maxHistoryItems);
@@ -688,7 +698,7 @@ class DataStorage {
         }
     }
 
-    loadHistory(asset = 'default') {
+    loadHistory(asset: string = 'default') {
         try {
             const key = `${this.historyKey}_${asset}`;
             const compressed = localStorage.getItem(key);
@@ -701,7 +711,7 @@ class DataStorage {
         }
     }
 
-    updateHistoryIndex(asset) {
+    updateHistoryIndex(asset: string) {
         try {
             const indexKey = 'historyIndex';
             const index = JSON.parse(localStorage.getItem(indexKey) || '[]');
@@ -739,7 +749,7 @@ class DataStorage {
         }
     }
 
-    saveSettings(settings) {
+    saveSettings(settings: any) {
         try {
             const compressed = this.compress(settings);
             localStorage.setItem(this.settingsKey, compressed);
@@ -797,7 +807,7 @@ class DataStorage {
         }
     }
 
-    importData(jsonData) {
+    importData(jsonData: string) {
         try {
             const data = JSON.parse(jsonData);
             
@@ -867,7 +877,7 @@ class Analytics {
         this.predictions = {};
     }
 
-    calculateMovingAverage(prices, period) {
+    calculateMovingAverage(prices: number[], period: number) {
         if (!prices || prices.length < period) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p)).slice(0, period);
@@ -877,7 +887,7 @@ class Analytics {
         return sum / validPrices.length;
     }
 
-    calculateEMA(prices, period) {
+    calculateEMA(prices: number[], period: number) {
         if (!prices || prices.length < period) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p));
@@ -893,7 +903,7 @@ class Analytics {
         return ema;
     }
 
-    calculateRSI(prices, period = 14) {
+    calculateRSI(prices: number[], period: number = 14) {
         if (!prices || prices.length < period + 1) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p));
@@ -922,7 +932,7 @@ class Analytics {
         return Math.round(rsi * 100) / 100;
     }
 
-    calculateVolatility(prices, period = 20) {
+    calculateVolatility(prices: number[], period: number = 20) {
         if (!prices || prices.length < period) return 0;
         
         const validPrices = prices.filter(p => p && !isNaN(p)).slice(0, period);
@@ -941,7 +951,7 @@ class Analytics {
         return Math.round(volatility * 100) / 100;
     }
 
-    calculateBollingerBands(prices, period = 20, stdDev = 2) {
+    calculateBollingerBands(prices: number[], period: number = 20, stdDev: number = 2) {
         if (!prices || prices.length < period) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p)).slice(0, period);
@@ -960,7 +970,7 @@ class Analytics {
         };
     }
 
-    calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+    calculateMACD(prices: number[], fastPeriod: number = 12, slowPeriod: number = 26, signalPeriod: number = 9) {
         if (!prices || prices.length < slowPeriod) return null;
         
         const fastEMA = this.calculateEMA(prices, fastPeriod);
@@ -979,7 +989,7 @@ class Analytics {
         };
     }
 
-    detectPatterns(prices) {
+    detectPatterns(prices: number[]) {
         if (!prices || prices.length < 10) return [];
         
         const patterns = [];
@@ -1038,7 +1048,7 @@ class Analytics {
         return patterns;
     }
 
-    predictNextPrice(prices, method = 'linear') {
+    predictNextPrice(prices: number[], method: string = 'linear') {
         if (!prices || prices.length < 3) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p)).slice(0, 10);
@@ -1056,7 +1066,7 @@ class Analytics {
         }
     }
 
-    linearRegression(prices) {
+    linearRegression(prices: number[]) {
         const n = prices.length;
         const x = Array.from({ length: n }, (_, i) => i);
         const y = prices;
@@ -1079,7 +1089,7 @@ class Analytics {
         };
     }
 
-    movingAveragePrediction(prices) {
+    movingAveragePrediction(prices: number[]) {
         const shortMA = this.calculateMovingAverage(prices, 3);
         const longMA = this.calculateMovingAverage(prices, 5);
         
@@ -1095,7 +1105,7 @@ class Analytics {
         };
     }
 
-    exponentialSmoothing(prices, alpha = 0.3) {
+    exponentialSmoothing(prices: number[], alpha: number = 0.3) {
         let smoothed = prices[prices.length - 1];
         
         for (let i = prices.length - 2; i >= 0; i--) {
@@ -1109,7 +1119,7 @@ class Analytics {
         };
     }
 
-    calculatePredictionConfidence(prices, slope) {
+    calculatePredictionConfidence(prices: number[], slope: number) {
         const volatility = this.calculateVolatility(prices);
         const trendStrength = Math.abs(slope) * 100;
         
@@ -1124,7 +1134,7 @@ class Analytics {
         return Math.max(10, Math.min(95, confidence));
     }
 
-    getMarketSentiment(priceHistory) {
+    getMarketSentiment(priceHistory: any[]) {
         if (!priceHistory || priceHistory.length < 5) {
             return { sentiment: 'Neutral', confidence: 50 };
         }
@@ -1169,7 +1179,7 @@ class Analytics {
         };
     }
 
-    generateReport(asset, priceHistory) {
+    generateReport(asset: string, priceHistory: any[]) {
         if (!priceHistory || priceHistory.length < 5) return null;
         
         const prices = priceHistory.map(h => h.price).filter(p => p && !isNaN(p));
@@ -1197,7 +1207,7 @@ class Analytics {
         return report;
     }
 
-    generateSummary(prices) {
+    generateSummary(prices: number[]) {
         const current = prices[0];
         const previous = prices[1] || current;
         const change = ((current - previous) / previous) * 100;
@@ -1264,7 +1274,7 @@ class AlertSystem {
         localStorage.setItem('alertSettings', JSON.stringify(settings));
     }
 
-    addAlert(asset, type, value, message = '') {
+    addAlert(asset: string, type: string, value: number, message: string = '') {
         const alert = {
             id: Date.now() + Math.random(),
             asset: asset,
@@ -1281,12 +1291,12 @@ class AlertSystem {
         return alert.id;
     }
 
-    removeAlert(alertId) {
+    removeAlert(alertId: string) {
         this.alerts = this.alerts.filter(alert => alert.id !== alertId);
         this.saveAlerts();
     }
 
-    toggleAlert(alertId) {
+    toggleAlert(alertId: string) {
         const alert = this.alerts.find(a => a.id === alertId);
         if (alert) {
             alert.active = !alert.active;
@@ -1294,8 +1304,8 @@ class AlertSystem {
         }
     }
 
-    checkAlerts(currentPrices, previousPrices = {}) {
-        const triggeredAlerts = [];
+    checkAlerts(currentPrices: any, previousPrices: any = {}) {
+        const triggeredAlerts: any[] = [];
         
         this.alerts.forEach(alert => {
             if (!alert.active || alert.triggered) return;
@@ -1359,7 +1369,7 @@ class AlertSystem {
         return triggeredAlerts;
     }
 
-    showNotification(alert) {
+    showNotification(alert: any) {
         if (this.notificationPermission === 'granted') {
             const notification = new Notification('Price Alert', {
                 body: alert.message,
@@ -1380,7 +1390,7 @@ class AlertSystem {
         this.showInAppNotification(alert);
     }
 
-    showInAppNotification(alert) {
+    showInAppNotification(alert: any) {
         const notification = document.createElement('div');
         notification.className = 'alert-notification';
         notification.innerHTML = `
@@ -1494,7 +1504,7 @@ class AlertSystem {
         };
     }
 
-    importAlerts(data) {
+    importAlerts(data: any) {
         try {
             if (data.alerts) {
                 this.alerts = data.alerts;
@@ -1565,7 +1575,7 @@ class ThemeManager {
         this.applyTheme(this.currentTheme);
     }
 
-    applyTheme(themeName) {
+    applyTheme(themeName: string) {
         const theme = this.themes[themeName];
         if (!theme) return;
         
@@ -1629,7 +1639,7 @@ class ThemeManager {
         return selector;
     }
 
-    addCustomTheme(name, colors) {
+    addCustomTheme(name: string, colors: any) {
         this.themes[name] = {
             name: name,
             colors: colors
@@ -1646,7 +1656,7 @@ class ThemeManager {
         Object.assign(this.themes, customThemes);
     }
 
-    exportTheme(themeName) {
+    exportTheme(themeName: string) {
         const theme = this.themes[themeName];
         if (!theme) return null;
         
@@ -1658,7 +1668,7 @@ class ThemeManager {
         };
     }
 
-    importTheme(themeData) {
+    importTheme(themeData: any) {
         try {
             if (themeData.name && themeData.colors) {
                 this.addCustomTheme(themeData.name, themeData.colors);
