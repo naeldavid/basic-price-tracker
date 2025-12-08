@@ -366,10 +366,12 @@ class PriceTracker {
         const autoRefreshEl = document.getElementById('autoRefresh');
         const refreshIntervalEl = document.getElementById('refreshInterval');
         const soundEnabledEl = document.getElementById('soundEnabled');
+        const notificationsEl = document.getElementById('notificationsEnabled');
         
         if (autoRefreshEl) autoRefreshEl.checked = this.settings.autoRefresh;
         if (refreshIntervalEl) refreshIntervalEl.value = this.settings.refreshInterval / 1000;
         if (soundEnabledEl) soundEnabledEl.checked = this.settings.soundEnabled;
+        if (notificationsEl) notificationsEl.checked = this.settings.notificationsEnabled;
     }
 }
 
@@ -417,17 +419,41 @@ function saveSettings() {
     const autoRefresh = document.getElementById('autoRefresh')?.checked ?? true;
     const refreshInterval = (document.getElementById('refreshInterval')?.value ?? 300) * 1000;
     const soundEnabled = document.getElementById('soundEnabled')?.checked ?? true;
+    const notificationsEnabled = document.getElementById('notificationsEnabled')?.checked ?? true;
     
     window.tracker.settings = {
         ...window.tracker.settings,
         autoRefresh,
         refreshInterval,
-        soundEnabled
+        soundEnabled,
+        notificationsEnabled
     };
     
     window.tracker.storage.saveSettings(window.tracker.settings);
     window.tracker.startAutoRefresh();
+    
+    if (notificationsEnabled && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+    
     alert('Settings saved!');
+}
+
+function addPriceAlert() {
+    if (!window.tracker) return;
+    
+    const asset = window.tracker.currentAsset;
+    const type = prompt('Alert type (above/below/change_up/change_down):');
+    if (!type || !['above', 'below', 'change_up', 'change_down'].includes(type)) return;
+    
+    const value = parseFloat(prompt('Alert value:'));
+    if (isNaN(value)) return;
+    
+    const info = window.tracker.api.getAssetInfo(asset);
+    const message = `${info.name} alert triggered`;
+    
+    window.tracker.alertSystem.addAlert(asset, type, value, message);
+    alert('Alert added!');
 }
 
 function resetConfiguration() {

@@ -455,14 +455,17 @@ class UniversalAPI {
         const symbol = symbols[asset];
         if (!symbol) throw new Error(`Unsupported metal: ${asset}`);
         
-        const apiUrl = `https://api.metals.live/v1/spot/${symbol}`;
-        
-        const data = await this.fetchWithTimeout(apiUrl);
-        const price = data[0]?.price;
-        
-        if (price && price > 0) {
-            console.log(`${asset}: $${price}`);
-            return price;
+        try {
+            const apiUrl = `https://api.metals.live/v1/spot/${symbol}`;
+            const data = await this.fetchWithTimeout(apiUrl);
+            const price = data[0]?.price;
+            
+            if (price && price > 0) {
+                console.log(`${asset}: $${price}`);
+                return price;
+            }
+        } catch (error) {
+            console.warn(`Metals API failed for ${asset}`);
         }
         
         throw new Error(`Failed to fetch ${asset} price`);
