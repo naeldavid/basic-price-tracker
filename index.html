@@ -3,340 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>"Basic" Price Tracker</title>
+    <title>Price Tracker</title>
     <link rel="icon" type="image/x-icon" href="static/favicon.ico">
     <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
-    <div id="welcomeMessage" class="welcome-message" style="display: none;">
-        <div class="welcome-content">
-            <h2>Welcome, <span id="userNameDisplay"></span>!</h2>
-            <p>Welcome to the "Basic" Price Tracker</p>
-        </div>
-    </div>
-
-    <div class="container" id="mainApp">
-        <h1>"Basic" Price Tracker</h1>
-        
-        <div class="currency-selector">
-            <label>Base Currency: 
-                <select id="baseCurrencySelect" onchange="changeBaseCurrency()">
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="JPY">JPY (¥)</option>
-                </select>
-            </label>
-        </div>
-        
-        <div class="asset-selector">
-            <div class="category-tabs">
-                <button class="category-tab active" data-category="crypto">Crypto</button>
-                <button class="category-tab" data-category="metal">Metals</button>
-                <button class="category-tab" data-category="currency">Currency</button>
-                <button class="category-tab" data-category="bigmac">Big Mac</button>
+    <div class="container">
+        <header class="header">
+            <h1>Price Tracker</h1>
+            <div class="header-actions">
+                <button class="btn-icon" onclick="refreshPrice()" title="Refresh">↻</button>
+                <button class="btn-icon" onclick="toggleSettings()" title="Settings">⚙</button>
             </div>
-            <div class="asset-tabs" id="assetTabs"></div>
+        </header>
+
+        <div class="category-tabs">
+            <button class="category-tab active" data-category="crypto">Crypto</button>
+            <button class="category-tab" data-category="metal">Metals</button>
+            <button class="category-tab" data-category="currency">Currency</button>
+            <button class="category-tab" data-category="bigmac">Big Mac</button>
         </div>
-        
-        <div class="price-display">
-            <div class="metal-header" id="metalHeader">Bitcoin</div>
+
+        <div class="asset-tabs" id="assetTabs"></div>
+
+        <div class="price-card">
+            <div class="asset-name" id="assetName">Bitcoin</div>
             <div class="current-price" id="currentPrice">Loading...</div>
             <div class="price-change" id="priceChange"></div>
-            <div class="price-targets" id="priceTargets"></div>
-            <div class="loading" id="loadingText">Fetching prices...</div>
-        </div>
-        
-        <!-- Quick Actions Bar -->
-        <div class="quick-actions" id="quickActions">
-            <button class="quick-btn" onclick="quickRefresh()" title="Quick Refresh">Refresh</button>
-            <button class="quick-btn" onclick="toggleFavorite()" title="Add to Favorites">Favorite</button>
-            <button class="quick-btn" onclick="sharePrice()" title="Share Price">Share</button>
-            <button class="quick-btn" onclick="toggleAutoSwitch()" title="Auto-Switch Mode">Auto</button>
-            <button class="quick-btn" onclick="togglePortfolioCalc()" title="Portfolio Calculator">Calc</button>
-        </div>
-        
-        <div class="multi-asset-overview" id="multiAssetOverview">
-            <h3>Portfolio Overview</h3>
-            <div class="assets-grid" id="assetsGrid"></div>
         </div>
 
-        <div class="controls">
-            <button class="btn-primary" onclick="refreshPrice()">Refresh</button>
-            <button class="btn-primary" onclick="window.location.href='buysell.html'">Trade Now</button>
-            <button class="btn-secondary" onclick="toggleHistory()">History</button>
-            <button class="btn-secondary" onclick="toggleSettings()">Settings</button>
-            <button class="btn-secondary" onclick="toggleNews()">News</button>
-            <button class="btn-secondary" onclick="toggleAdvanced()">Advanced</button>
-            <button class="btn-secondary" onclick="togglePerformanceDashboard()">Performance</button>
-            <button class="btn-secondary" onclick="togglePriceTicker()">Ticker</button>
-            <button class="btn-secondary" onclick="startVoiceCommands()">Voice</button>
-        </div>
+        <div class="assets-grid" id="assetsGrid"></div>
 
-        <div class="history" id="historySection" style="display: none;">
-            <h3>Price History</h3>
-            <div id="historyList"></div>
-        </div>
-
-        <div class="settings-panel" id="settingsPanel" style="display: none;" role="dialog" aria-labelledby="settingsTitle">
-            <div class="settings-header">
-                <h3 id="settingsTitle">Settings & Configuration</h3>
-                <button class="close-btn" onclick="toggleSettings()" aria-label="Close settings">×</button>
+        <div class="settings-panel" id="settingsPanel" style="display: none;">
+            <div class="panel-header">
+                <h3>Settings</h3>
+                <button class="close-btn" onclick="toggleSettings()">×</button>
             </div>
-            <div class="settings-grid">
+            <div class="settings-content">
                 <div class="setting-group">
                     <h4>Asset Selection</h4>
                     <div id="assetSelection"></div>
-                    <button onclick="saveAssetSelection()" class="btn-primary">Save Selection</button>
+                    <button onclick="saveAssetSelection()" class="btn-primary">Save</button>
                 </div>
-                
                 <div class="setting-group">
-                    <h4>Display Options</h4>
-                    <label>
-                        <input type="checkbox" id="compactView"> Compact view
-                    </label>
-                    <label>
-                        <input type="checkbox" id="showPercentages" checked> Show percentages
-                    </label>
-                    <label>
-                        <input type="checkbox" id="showVolume"> Show volume data
-                    </label>
-                    <label>
-                        Auto-refresh interval:
-                        <select id="refreshInterval">
-                            <option value="60000">1 minute</option>
-                            <option value="300000" selected>5 minutes</option>
-                            <option value="600000">10 minutes</option>
-                            <option value="1800000">30 minutes</option>
-                        </select>
-                    </label>
-                </div>
-                
-                <div class="setting-group">
-                    <h4>Notifications</h4>
-                    <label>
-                        <input type="checkbox" id="browserNotifications" checked> Browser notifications
-                    </label>
-                    <label>
-                        <input type="checkbox" id="soundAlerts" checked> Sound alerts
-                    </label>
-                    <label>
-                        <input type="checkbox" id="priceAlerts" checked> Price change alerts
-                    </label>
-                </div>
-                
-                <div class="setting-group">
-                    <h4>Portfolio & Currency</h4>
-                    <label>
-                        <input type="checkbox" id="enablePortfolioCalc"> Enable portfolio calculator
-                    </label>
-                    <label>
-                        Local Currency:
-                        <select id="localCurrency">
-                            <option value="USD">USD ($)</option>
-                            <option value="EUR">EUR (€)</option>
-                            <option value="GBP">GBP (£)</option>
-                            <option value="JPY">JPY (¥)</option>
-                            <option value="CAD">CAD (C$)</option>
-                            <option value="AUD">AUD (A$)</option>
-                        </select>
-                    </label>
-                    <label>
-                        Auto-switch interval:
-                        <select id="autoSwitchInterval">
-                            <option value="0">Disabled</option>
-                            <option value="3000">3 seconds</option>
-                            <option value="5000" selected>5 seconds</option>
-                            <option value="10000">10 seconds</option>
-                        </select>
-                    </label>
-                </div>
-                
-                <div class="setting-group">
-                    <h4>Data & Privacy</h4>
-                    <button onclick="exportData()" class="btn-secondary">Export Data</button>
-                    <button onclick="importData()" class="btn-secondary">Import Data</button>
-                    <button onclick="clearCache()" class="btn-secondary">Clear Cache</button>
-                    <button onclick="resetConfiguration()" class="btn-danger">Reset All Settings</button>
-                    <p style="font-size: 0.8em; opacity: 0.7; margin-top: 10px;">Reset will clear all settings and return to setup.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="news-feed" id="newsFeed" style="display: none;">
-            <h3>Market News</h3>
-            <div id="newsList"></div>
-        </div>
-
-        <!-- Price Alerts Panel -->
-        <div class="alerts-panel" id="alertsPanel" style="display: none;" role="dialog" aria-labelledby="alertsTitle">
-            <div class="panel-header">
-                <h3 id="alertsTitle">Price Alerts</h3>
-                <button class="close-btn" onclick="toggleAlerts()" aria-label="Close alerts panel">×</button>
-            </div>
-            <div class="alerts-content">
-                <div class="alert-form">
-                    <h4>Create New Alert</h4>
-                    <div class="form-row">
-                        <select id="alertAsset">
-                            <option value="">Select Asset</option>
-                        </select>
-                        <select id="alertType">
-                            <option value="above">Price Above</option>
-                            <option value="below">Price Below</option>
-                            <option value="change_up">% Increase</option>
-                            <option value="change_down">% Decrease</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <input type="number" id="alertValue" placeholder="Enter value" step="0.01">
-                        <button onclick="createAlert()" class="btn-primary">Add Alert</button>
-                    </div>
-                </div>
-                <div class="alerts-list" id="alertsList">
-                    <h4>Active Alerts</h4>
-                    <div id="activeAlerts"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="advanced-mode" id="advancedMode" style="display: none;" role="dialog" aria-labelledby="advancedTitle">
-            <div class="panel-header">
-                <h2 id="advancedTitle">Advanced Analytics</h2>
-                <button class="close-btn" onclick="toggleAdvanced()" aria-label="Close advanced mode">×</button>
-            </div>
-            
-            <div class="analytics-tabs">
-                <button class="analytics-tab active" data-tab="charts">Charts</button>
-                <button class="analytics-tab" data-tab="indicators">Indicators</button>
-                <button class="analytics-tab" data-tab="portfolio">Portfolio</button>
-                <button class="analytics-tab" data-tab="predictions">Predictions</button>
-                <button class="analytics-tab" data-tab="correlation">Correlation</button>
-            </div>
-            
-            <div class="analytics-content">
-                <div class="analytics-panel active" id="chartsPanel">
-                    <div class="chart-controls">
-                        <select id="chartType">
-                            <option value="line">Line Chart</option>
-                            <option value="candlestick">Candlestick</option>
-                            <option value="area">Area Chart</option>
-                        </select>
-                        <select id="timeframe">
-                            <option value="1h">1 Hour</option>
-                            <option value="1d" selected>1 Day</option>
-                            <option value="1w">1 Week</option>
-                            <option value="1m">1 Month</option>
-                        </select>
-                    </div>
-                    <div class="chart-container">
-                        <div id="customChart"></div>
-                    </div>
-                </div>
-                
-                <div class="analytics-panel" id="indicatorsPanel">
-                    <div class="advanced-stats">
-                        <div class="stat-card">
-                            <h4>24h High</h4>
-                            <span id="dayHigh">$0.00</span>
-                        </div>
-                        <div class="stat-card">
-                            <h4>24h Low</h4>
-                            <span id="dayLow">$0.00</span>
-                        </div>
-                        <div class="stat-card">
-                            <h4>Volatility</h4>
-                            <span id="volatility">0%</span>
-                        </div>
-                        <div class="stat-card">
-                            <h4>RSI (14)</h4>
-                            <span id="rsi">50.00</span>
-                        </div>
-                        <div class="stat-card">
-                            <h4>5-Day MA</h4>
-                            <span id="ma5">$0.00</span>
-                        </div>
-                        <div class="stat-card">
-                            <h4>10-Day MA</h4>
-                            <span id="ma10">$0.00</span>
-                        </div>
-                        <div class="stat-card">
-                            <h4>MACD</h4>
-                            <span id="macd">0.00</span>
-                        </div>
-                        <div class="stat-card">
-                            <h4>Market Sentiment</h4>
-                            <div id="marketSentiment">Loading...</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="analytics-panel" id="portfolioPanel">
-                    <div class="portfolio-analytics">
-                        <div class="portfolio-summary">
-                            <h4>Portfolio Performance</h4>
-                            <div class="performance-metrics">
-                                <div class="metric">
-                                    <span class="metric-label">Total Value:</span>
-                                    <span class="metric-value" id="portfolioValue">$0.00</span>
-                                </div>
-                                <div class="metric">
-                                    <span class="metric-label">24h Change:</span>
-                                    <span class="metric-value" id="portfolioChange">+0.00%</span>
-                                </div>
-                                <div class="metric">
-                                    <span class="metric-label">Best Performer:</span>
-                                    <span class="metric-value" id="bestPerformer">-</span>
-                                </div>
-                                <div class="metric">
-                                    <span class="metric-label">Worst Performer:</span>
-                                    <span class="metric-value" id="worstPerformer">-</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="allocation-chart" id="allocationChart"></div>
-                    </div>
-                </div>
-                
-                <div class="analytics-panel" id="predictionsPanel">
-                    <div class="predictions-content">
-                        <h4>Price Predictions</h4>
-                        <div class="prediction-cards" id="predictionCards"></div>
-                        <div class="prediction-disclaimer">
-                            <p><strong>Disclaimer:</strong> Predictions are based on technical analysis and should not be considered as financial advice.</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="analytics-panel" id="correlationPanel">
-                    <div class="correlation-content">
-                        <h4>Asset Correlation Matrix</h4>
-                        <div class="correlation-matrix" id="correlationMatrix"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Portfolio Calculator Modal -->
-    <div class="portfolio-calc-modal" id="portfolioCalcModal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Portfolio Calculator</h3>
-                <button class="close-btn" onclick="togglePortfolioCalc()">×</button>
-            </div>
-            <div class="portfolio-calc-content">
-                <div class="calc-form" id="calcForm"></div>
-                <div class="calc-summary" id="calcSummary">
-                    <h4>Portfolio Summary</h4>
-                    <div class="summary-item">
-                        <span>Total Value:</span>
-                        <span id="totalValue">$0.00</span>
-                    </div>
-                    <div class="summary-item">
-                        <span>24h Change:</span>
-                        <span id="totalChange">$0.00 (0.00%)</span>
-                    </div>
+                    <h4>Data</h4>
+                    <button onclick="resetConfiguration()" class="btn-danger">Reset All</button>
                 </div>
             </div>
         </div>
@@ -344,149 +55,36 @@
 
     <script>
         function getUserData() {
-            // Try multiple sources for cross-browser compatibility
-            let setupComplete, userName, selectedAssets;
-            
-            // Method 1: URL parameters (most reliable)
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('setup') === 'true') {
-                setupComplete = 'true';
-                userName = decodeURIComponent(urlParams.get('user') || '');
-                selectedAssets = decodeURIComponent(urlParams.get('assets') || '[]');
+                const userName = decodeURIComponent(urlParams.get('user') || '');
+                const selectedAssets = decodeURIComponent(urlParams.get('assets') || '[]');
                 
-                // Save to storage for future visits
-                try {
-                    localStorage.setItem('setupComplete', 'true');
-                    localStorage.setItem('userName', userName);
-                    localStorage.setItem('userSelectedAssets', selectedAssets);
-                } catch (e) {
-                    sessionStorage.setItem('setupComplete', 'true');
-                    sessionStorage.setItem('userName', userName);
-                    sessionStorage.setItem('userSelectedAssets', selectedAssets);
-                }
-                
-                // Clean URL
+                localStorage.setItem('setupComplete', 'true');
+                localStorage.setItem('userName', userName);
+                localStorage.setItem('userSelectedAssets', selectedAssets);
                 window.history.replaceState({}, document.title, window.location.pathname);
-            } else {
-                // Method 2: localStorage
-                setupComplete = localStorage.getItem('setupComplete');
-                userName = localStorage.getItem('userName');
-                selectedAssets = localStorage.getItem('userSelectedAssets');
-                
-                // Method 3: sessionStorage fallback
-                if (!setupComplete) {
-                    setupComplete = sessionStorage.getItem('setupComplete');
-                    userName = sessionStorage.getItem('userName');
-                    selectedAssets = sessionStorage.getItem('userSelectedAssets');
-                }
             }
             
-            return { setupComplete, userName, selectedAssets };
+            return {
+                setupComplete: localStorage.getItem('setupComplete'),
+                userName: localStorage.getItem('userName'),
+                selectedAssets: localStorage.getItem('userSelectedAssets')
+            };
         }
         
-        // Check setup status
         const { setupComplete, userName, selectedAssets } = getUserData();
         
-        console.log('Setup complete:', setupComplete);
-        console.log('User name:', userName);
-        console.log('Selected assets:', selectedAssets);
-        
         if (setupComplete !== 'true' || !userName || !selectedAssets) {
-            console.log('Redirecting to setup...');
             window.location.href = 'setup.html';
         } else {
-            // Show welcome message
-            document.getElementById('userNameDisplay').textContent = userName;
-            document.getElementById('welcomeMessage').style.display = 'block';
-            setTimeout(() => {
-                document.getElementById('welcomeMessage').style.display = 'none';
-            }, 3000);
-        }
-        
-        // Load main app scripts
-        function loadMainApp() {
-            const scripts = [
-                'static/core.js',
-                'static/app.js'
-            ];
-            
-            scripts.forEach((src, index) => {
+            const scripts = ['static/core.js', 'static/app.js'];
+            scripts.forEach(src => {
                 const script = document.createElement('script');
                 script.src = src;
-                if (index === scripts.length - 1) {
-                    script.onload = () => {
-                        console.log('All scripts loaded successfully');
-                    };
-                }
                 document.head.appendChild(script);
             });
         }
-        
-        loadMainApp();
     </script>
-    
-
-    <!-- Performance Monitor -->
-    <div class="performance-monitor" id="performanceMonitor">
-        <div class="perf-indicator" id="connectionStatus" title="Connection Status">
-            <span class="status-dot"></span>
-            <span class="status-text">Connected</span>
-        </div>
-        <div class="perf-metric" id="apiLatency" title="API Response Time">
-            <span class="metric-icon">⚡</span>
-            <span class="metric-text">0ms</span>
-        </div>
-        <div class="perf-metric" id="updateCount" title="Updates Count">
-            <span class="metric-icon">🔄</span>
-            <span class="metric-text">0</span>
-        </div>
-    </div>
-
-    <!-- Enhanced Shortcuts Panel -->
-    <div class="shortcuts-panel" id="shortcutsPanel">
-        <div class="shortcuts-header" onclick="toggleShortcuts()">
-            <span>⌨️ Shortcuts</span>
-            <span class="toggle-icon" id="shortcutsToggle">▼</span>
-        </div>
-        <div class="shortcuts-content" id="shortcutsContent">
-            <div class="shortcut-category">
-                <h5>Navigation</h5>
-                <div><kbd>Space</kbd> Refresh Prices</div>
-                <div><kbd>H</kbd> Toggle History</div>
-                <div><kbd>S</kbd> Toggle Settings</div>
-                <div><kbd>N</kbd> Toggle News</div>
-                <div><kbd>A</kbd> Toggle Advanced Mode</div>
-                <div><kbd>Esc</kbd> Close All Panels</div>
-            </div>
-            <div class="shortcut-category">
-                <h5>Actions</h5>
-                <div><kbd>R</kbd> Refresh Data</div>
-                <div><kbd>T</kbd> Switch Theme</div>
-                <div><kbd>F</kbd> Fullscreen</div>
-                <div><kbd>E</kbd> Export Data</div>
-                <div><kbd>Alt+H</kbd> Help</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notification Container -->
-    <div class="notification-container" id="notificationContainer" aria-live="polite"></div>
-
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Loading...</div>
-    </div>
-
-    <!-- Error Boundary -->
-    <div class="error-boundary" id="errorBoundary" style="display: none;" role="alert">
-        <div class="error-content">
-            <h3>Something went wrong</h3>
-            <p id="errorMessage">An unexpected error occurred. Please refresh the page.</p>
-            <button onclick="window.location.reload()" class="btn-primary">Refresh Page</button>
-        </div>
-    </div>
-    
-    <a href="https://github.com/naeldavid/basic-gold-price-tracker" target="_blank" class="github-btn" title="View on GitHub">GitHub</a>
 </body>
 </html>
