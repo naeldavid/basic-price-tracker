@@ -21,7 +21,7 @@ class WebSocketManager {
         });
     }
 
-    connect(url: string, options: any = {}) {
+    connect(url, options = {}) {
         if (!this.isOnline) return null;
         
         try {
@@ -65,7 +65,7 @@ class WebSocketManager {
         }
     }
 
-    attemptReconnect(url: string, options: any) {
+    attemptReconnect(url, options) {
         if (!this.isOnline || this.reconnectAttempts >= this.maxReconnectAttempts) {
             return;
         }
@@ -94,7 +94,7 @@ class WebSocketManager {
         this.connections.clear();
     }
 
-    send(connectionId: string, data: any) {
+    send(connectionId, data) {
         const connection = this.connections.get(connectionId);
         if (connection && connection.ws.readyState === WebSocket.OPEN) {
             connection.ws.send(JSON.stringify(data));
@@ -135,7 +135,7 @@ class PerformanceMonitor {
         }
     }
 
-    recordApiCall(responseTime: number, success: boolean = true) {
+    recordApiCall(responseTime, success = true) {
         this.metrics.apiCalls++;
         this.metrics.totalResponseTime += responseTime;
         this.metrics.averageResponseTime = this.metrics.totalResponseTime / this.metrics.apiCalls;
@@ -179,7 +179,7 @@ class PerformanceMonitor {
         };
     }
 
-    addObserver(callback: any) {
+    addObserver(callback) {
         this.observers.push(callback);
     }
 
@@ -308,7 +308,7 @@ class UniversalAPI {
         }
     }
 
-    handleServiceWorkerMessage(data: any) {
+    handleServiceWorkerMessage(data) {
         switch (data.type) {
             case 'BACKGROUND_SYNC':
                 if (data.action === 'PRICE_UPDATE_AVAILABLE') {
@@ -323,7 +323,7 @@ class UniversalAPI {
         window.dispatchEvent(new CustomEvent('backgroundPriceUpdate'));
     }
 
-    async fetchWithTimeout(url: string, timeout: number = 8000) {
+    async fetchWithTimeout(url, timeout = 8000) {
         // Check circuit breaker
         if (this.circuitBreaker.state === 'OPEN') {
             if (Date.now() - this.circuitBreaker.lastFailure < this.circuitBreaker.timeout) {
@@ -399,7 +399,7 @@ class UniversalAPI {
         }
     }
 
-    async queueRequest(requestFn: any) {
+    async queueRequest(requestFn) {
         return new Promise((resolve, reject) => {
             this.requestQueue.push({ requestFn, resolve, reject });
             this.processQueue();
@@ -428,7 +428,7 @@ class UniversalAPI {
         this.isProcessingQueue = false;
     }
 
-    async fetchCryptoPrice(asset: string = 'btc') {
+    async fetchCryptoPrice(asset = 'btc') {
         const symbols = { 
             btc: 'BTC-USD', eth: 'ETH-USD', bnb: 'BNB-USD', ada: 'ADA-USD', 
             sol: 'SOL-USD', xrp: 'XRP-USD', dot: 'DOT-USD', doge: 'DOGE-USD', 
@@ -451,7 +451,7 @@ class UniversalAPI {
         throw new Error(`Failed to fetch ${asset} price`);
     }
 
-    async fetchMetalPrice(asset: string) {
+    async fetchMetalPrice(asset) {
         const symbols = {
             gold: 'GC=F', silver: 'SI=F', platinum: 'PL=F', palladium: 'PA=F'
         };
@@ -472,7 +472,7 @@ class UniversalAPI {
         throw new Error(`Failed to fetch ${asset} price`);
     }
 
-    async fetchForexPrice(asset: string) {
+    async fetchForexPrice(asset) {
         const symbols = {
             usd_eur: 'EURUSD=X', usd_gbp: 'GBPUSD=X', usd_jpy: 'USDJPY=X', usd_cad: 'USDCAD=X',
             usd_aud: 'AUDUSD=X', usd_chf: 'USDCHF=X', usd_cny: 'USDCNY=X', usd_inr: 'USDINR=X',
@@ -499,7 +499,7 @@ class UniversalAPI {
         throw new Error(`Failed to fetch ${asset} rate`);
     }
 
-    getBigMacPrice(asset: string) {
+    getBigMacPrice(asset) {
         const realPrices = {
             bigmac_us: 5.69, bigmac_uk: 4.89, bigmac_jp: 450, 
             bigmac_eu: 5.15, bigmac_ca: 6.77
@@ -514,7 +514,7 @@ class UniversalAPI {
         return price;
     }
 
-    async fetchPrice(asset: string) {
+    async fetchPrice(asset) {
         const assetInfo = this.assets[asset];
         if (!assetInfo) return this.fallbackPrices[asset] || 0;
 
@@ -600,7 +600,7 @@ class UniversalAPI {
         }
     }
 
-    saveUserSelection(selectedAssets: string[]) {
+    saveUserSelection(selectedAssets) {
         this.userSelectedAssets = selectedAssets;
         try {
             localStorage.setItem('userSelectedAssets', JSON.stringify(selectedAssets));
@@ -613,7 +613,7 @@ class UniversalAPI {
         return this.userSelectedAssets;
     }
 
-    setBaseCurrency(currency: string) {
+    setBaseCurrency(currency) {
         this.baseCurrency = currency;
         try {
             localStorage.setItem('baseCurrency', currency);
@@ -626,7 +626,7 @@ class UniversalAPI {
         return this.baseCurrency;
     }
 
-    getAssetInfo(asset: string) {
+    getAssetInfo(asset) {
         return this.assets[asset];
     }
 
@@ -634,7 +634,7 @@ class UniversalAPI {
         return Object.keys(this.assets);
     }
 
-    getAssetsByType(type: string) {
+    getAssetsByType(type) {
         return Object.keys(this.assets).filter(asset => this.assets[asset].type === type);
     }
 
@@ -658,7 +658,7 @@ class DataStorage {
         this.compressionEnabled = true;
     }
 
-    compress(data: any) {
+    compress(data) {
         if (!this.compressionEnabled) return JSON.stringify(data);
         
         try {
@@ -671,7 +671,7 @@ class DataStorage {
         }
     }
 
-    decompress(compressedData: string) {
+    decompress(compressedData) {
         if (!this.compressionEnabled) return JSON.parse(compressedData);
         
         try {
@@ -683,7 +683,7 @@ class DataStorage {
         }
     }
 
-    saveHistory(history: any[], asset: string = 'default') {
+    saveHistory(history, asset = 'default') {
         try {
             const key = `${this.historyKey}_${asset}`;
             const limitedHistory = history.slice(0, this.maxHistoryItems);
@@ -698,7 +698,7 @@ class DataStorage {
         }
     }
 
-    loadHistory(asset: string = 'default') {
+    loadHistory(asset = 'default') {
         try {
             const key = `${this.historyKey}_${asset}`;
             const compressed = localStorage.getItem(key);
@@ -711,7 +711,7 @@ class DataStorage {
         }
     }
 
-    updateHistoryIndex(asset: string) {
+    updateHistoryIndex(asset) {
         try {
             const indexKey = 'historyIndex';
             const index = JSON.parse(localStorage.getItem(indexKey) || '[]');
@@ -749,7 +749,7 @@ class DataStorage {
         }
     }
 
-    saveSettings(settings: any) {
+    saveSettings(settings) {
         try {
             const compressed = this.compress(settings);
             localStorage.setItem(this.settingsKey, compressed);
@@ -807,7 +807,7 @@ class DataStorage {
         }
     }
 
-    importData(jsonData: string) {
+    importData(jsonData) {
         try {
             const data = JSON.parse(jsonData);
             
@@ -877,7 +877,7 @@ class Analytics {
         this.predictions = {};
     }
 
-    calculateMovingAverage(prices: number[], period: number) {
+    calculateMovingAverage(prices, period) {
         if (!prices || prices.length < period) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p)).slice(0, period);
@@ -887,7 +887,7 @@ class Analytics {
         return sum / validPrices.length;
     }
 
-    calculateEMA(prices: number[], period: number) {
+    calculateEMA(prices, period) {
         if (!prices || prices.length < period) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p));
@@ -903,7 +903,7 @@ class Analytics {
         return ema;
     }
 
-    calculateRSI(prices: number[], period: number = 14) {
+    calculateRSI(prices, period = 14) {
         if (!prices || prices.length < period + 1) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p));
@@ -932,7 +932,7 @@ class Analytics {
         return Math.round(rsi * 100) / 100;
     }
 
-    calculateVolatility(prices: number[], period: number = 20) {
+    calculateVolatility(prices, period = 20) {
         if (!prices || prices.length < period) return 0;
         
         const validPrices = prices.filter(p => p && !isNaN(p)).slice(0, period);
@@ -951,7 +951,7 @@ class Analytics {
         return Math.round(volatility * 100) / 100;
     }
 
-    calculateBollingerBands(prices: number[], period: number = 20, stdDev: number = 2) {
+    calculateBollingerBands(prices, period = 20, stdDev = 2) {
         if (!prices || prices.length < period) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p)).slice(0, period);
@@ -970,7 +970,7 @@ class Analytics {
         };
     }
 
-    calculateMACD(prices: number[], fastPeriod: number = 12, slowPeriod: number = 26, signalPeriod: number = 9) {
+    calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
         if (!prices || prices.length < slowPeriod) return null;
         
         const fastEMA = this.calculateEMA(prices, fastPeriod);
@@ -989,7 +989,7 @@ class Analytics {
         };
     }
 
-    detectPatterns(prices: number[]) {
+    detectPatterns(prices) {
         if (!prices || prices.length < 10) return [];
         
         const patterns = [];
@@ -1048,7 +1048,7 @@ class Analytics {
         return patterns;
     }
 
-    predictNextPrice(prices: number[], method: string = 'linear') {
+    predictNextPrice(prices, method = 'linear') {
         if (!prices || prices.length < 3) return null;
         
         const validPrices = prices.filter(p => p && !isNaN(p)).slice(0, 10);
@@ -1066,7 +1066,7 @@ class Analytics {
         }
     }
 
-    linearRegression(prices: number[]) {
+    linearRegression(prices) {
         const n = prices.length;
         const x = Array.from({ length: n }, (_, i) => i);
         const y = prices;
@@ -1089,7 +1089,7 @@ class Analytics {
         };
     }
 
-    movingAveragePrediction(prices: number[]) {
+    movingAveragePrediction(prices) {
         const shortMA = this.calculateMovingAverage(prices, 3);
         const longMA = this.calculateMovingAverage(prices, 5);
         
@@ -1105,7 +1105,7 @@ class Analytics {
         };
     }
 
-    exponentialSmoothing(prices: number[], alpha: number = 0.3) {
+    exponentialSmoothing(prices, alpha = 0.3) {
         let smoothed = prices[prices.length - 1];
         
         for (let i = prices.length - 2; i >= 0; i--) {
@@ -1119,7 +1119,7 @@ class Analytics {
         };
     }
 
-    calculatePredictionConfidence(prices: number[], slope: number) {
+    calculatePredictionConfidence(prices, slope) {
         const volatility = this.calculateVolatility(prices);
         const trendStrength = Math.abs(slope) * 100;
         
@@ -1134,7 +1134,7 @@ class Analytics {
         return Math.max(10, Math.min(95, confidence));
     }
 
-    getMarketSentiment(priceHistory: any[]) {
+    getMarketSentiment(priceHistory) {
         if (!priceHistory || priceHistory.length < 5) {
             return { sentiment: 'Neutral', confidence: 50 };
         }
@@ -1179,7 +1179,7 @@ class Analytics {
         };
     }
 
-    generateReport(asset: string, priceHistory: any[]) {
+    generateReport(asset, priceHistory) {
         if (!priceHistory || priceHistory.length < 5) return null;
         
         const prices = priceHistory.map(h => h.price).filter(p => p && !isNaN(p));
@@ -1207,7 +1207,7 @@ class Analytics {
         return report;
     }
 
-    generateSummary(prices: number[]) {
+    generateSummary(prices) {
         const current = prices[0];
         const previous = prices[1] || current;
         const change = ((current - previous) / previous) * 100;
@@ -1274,7 +1274,7 @@ class AlertSystem {
         localStorage.setItem('alertSettings', JSON.stringify(settings));
     }
 
-    addAlert(asset: string, type: string, value: number, message: string = '') {
+    addAlert(asset, type, value, message = '') {
         const alert = {
             id: Date.now() + Math.random(),
             asset: asset,
@@ -1291,12 +1291,12 @@ class AlertSystem {
         return alert.id;
     }
 
-    removeAlert(alertId: string) {
+    removeAlert(alertId) {
         this.alerts = this.alerts.filter(alert => alert.id !== alertId);
         this.saveAlerts();
     }
 
-    toggleAlert(alertId: string) {
+    toggleAlert(alertId) {
         const alert = this.alerts.find(a => a.id === alertId);
         if (alert) {
             alert.active = !alert.active;
@@ -1304,8 +1304,8 @@ class AlertSystem {
         }
     }
 
-    checkAlerts(currentPrices: any, previousPrices: any = {}) {
-        const triggeredAlerts: any[] = [];
+    checkAlerts(currentPrices, previousPrices = {}) {
+        const triggeredAlerts = [];
         
         this.alerts.forEach(alert => {
             if (!alert.active || alert.triggered) return;
@@ -1369,7 +1369,7 @@ class AlertSystem {
         return triggeredAlerts;
     }
 
-    showNotification(alert: any) {
+    showNotification(alert) {
         if (this.notificationPermission === 'granted') {
             const notification = new Notification('Price Alert', {
                 body: alert.message,
@@ -1390,7 +1390,7 @@ class AlertSystem {
         this.showInAppNotification(alert);
     }
 
-    showInAppNotification(alert: any) {
+    showInAppNotification(alert) {
         const notification = document.createElement('div');
         notification.className = 'alert-notification';
         notification.innerHTML = `
@@ -1504,7 +1504,7 @@ class AlertSystem {
         };
     }
 
-    importAlerts(data: any) {
+    importAlerts(data) {
         try {
             if (data.alerts) {
                 this.alerts = data.alerts;
@@ -1575,7 +1575,7 @@ class ThemeManager {
         this.applyTheme(this.currentTheme);
     }
 
-    applyTheme(themeName: string) {
+    applyTheme(themeName) {
         const theme = this.themes[themeName];
         if (!theme) return;
         
@@ -1639,7 +1639,7 @@ class ThemeManager {
         return selector;
     }
 
-    addCustomTheme(name: string, colors: any) {
+    addCustomTheme(name, colors) {
         this.themes[name] = {
             name: name,
             colors: colors
@@ -1656,7 +1656,7 @@ class ThemeManager {
         Object.assign(this.themes, customThemes);
     }
 
-    exportTheme(themeName: string) {
+    exportTheme(themeName) {
         const theme = this.themes[themeName];
         if (!theme) return null;
         
@@ -1668,7 +1668,7 @@ class ThemeManager {
         };
     }
 
-    importTheme(themeData: any) {
+    importTheme(themeData) {
         try {
             if (themeData.name && themeData.colors) {
                 this.addCustomTheme(themeData.name, themeData.colors);
