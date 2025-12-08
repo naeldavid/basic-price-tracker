@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Tracker</title>
     <link rel="icon" type="image/x-icon" href="static/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -26,10 +30,27 @@
 
         <div class="asset-tabs" id="assetTabs"></div>
 
-        <div class="price-card">
-            <div class="asset-name" id="assetName">Bitcoin</div>
-            <div class="current-price" id="currentPrice">Loading...</div>
-            <div class="price-change" id="priceChange"></div>
+        <div class="main-content">
+            <div class="price-section">
+                <div class="price-card">
+                    <div class="asset-name" id="assetName">Bitcoin</div>
+                    <div class="current-price" id="currentPrice">Loading...</div>
+                    <div class="price-change" id="priceChange"></div>
+                    <div style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
+                        <span id="lastUpdate">Last updated: Never</span>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>Price History</h3>
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="news-section">
+                <h3>Finance News</h3>
+                <div id="newsContainer">Loading news...</div>
+            </div>
         </div>
 
         <div class="assets-grid" id="assetsGrid"></div>
@@ -43,8 +64,35 @@
                 <div class="setting-group">
                     <h4>Asset Selection</h4>
                     <div id="assetSelection"></div>
-                    <button onclick="saveAssetSelection()" class="btn-primary">Save</button>
+                    <button onclick="saveAssetSelection()" class="btn-primary">Save Assets</button>
                 </div>
+                
+                <div class="setting-group">
+                    <h4>Refresh Settings</h4>
+                    <label>
+                        <input type="checkbox" id="autoRefresh" checked>
+                        Auto-refresh prices
+                    </label>
+                    <label>
+                        Refresh interval (seconds):
+                        <input type="number" id="refreshInterval" value="300" min="30" max="3600" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 0.25rem;">
+                    </label>
+                    <button onclick="saveSettings()" class="btn-primary">Save Settings</button>
+                </div>
+                
+                <div class="setting-group">
+                    <h4>Notifications</h4>
+                    <label>
+                        <input type="checkbox" id="notificationsEnabled" checked>
+                        Enable push notifications
+                    </label>
+                    <label>
+                        <input type="checkbox" id="soundEnabled" checked>
+                        Enable sound alerts
+                    </label>
+                    <button onclick="addPriceAlert()" class="btn-primary" style="margin-top: 0.5rem;">Add Price Alert</button>
+                </div>
+                
                 <div class="setting-group">
                     <h4>Data</h4>
                     <button onclick="resetConfiguration()" class="btn-danger">Reset All</button>

@@ -340,11 +340,7 @@ class UniversalAPI {
         try {
             const response = await fetch(url, {
                 signal: controller.signal,
-                headers: { 
-                    'Accept': 'application/json',
-                    'User-Agent': 'PriceTracker/2.0',
-                    'Cache-Control': 'no-cache'
-                }
+                mode: 'cors'
             });
             clearTimeout(timeoutId);
             
@@ -430,18 +426,18 @@ class UniversalAPI {
 
     async fetchCryptoPrice(asset = 'btc') {
         const symbols = { 
-            btc: 'BTC-USD', eth: 'ETH-USD', bnb: 'BNB-USD', ada: 'ADA-USD', 
-            sol: 'SOL-USD', xrp: 'XRP-USD', dot: 'DOT-USD', doge: 'DOGE-USD', 
-            avax: 'AVAX-USD', matic: 'MATIC-USD'
+            btc: 'bitcoin', eth: 'ethereum', bnb: 'binancecoin', ada: 'cardano', 
+            sol: 'solana', xrp: 'ripple', dot: 'polkadot', doge: 'dogecoin', 
+            avax: 'avalanche-2', matic: 'matic-network'
         };
         const symbol = symbols[asset];
         
         if (!symbol) throw new Error(`Unsupported crypto: ${asset}`);
         
-        const apiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
+        const apiUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${symbol}&vs_currencies=usd`;
         
         const data = await this.fetchWithTimeout(apiUrl);
-        const price = data.chart?.result?.[0]?.meta?.regularMarketPrice;
+        const price = data[symbol]?.usd;
         
         if (price && price > 0) {
             console.log(`${asset.toUpperCase()}: $${price}`);
@@ -453,16 +449,16 @@ class UniversalAPI {
 
     async fetchMetalPrice(asset) {
         const symbols = {
-            gold: 'GC=F', silver: 'SI=F', platinum: 'PL=F', palladium: 'PA=F'
+            gold: 'XAU', silver: 'XAG', platinum: 'XPT', palladium: 'XPD'
         };
         
         const symbol = symbols[asset];
         if (!symbol) throw new Error(`Unsupported metal: ${asset}`);
         
-        const apiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
+        const apiUrl = `https://api.metals.live/v1/spot/${symbol}`;
         
         const data = await this.fetchWithTimeout(apiUrl);
-        const price = data.chart?.result?.[0]?.meta?.regularMarketPrice;
+        const price = data[0]?.price;
         
         if (price && price > 0) {
             console.log(`${asset}: $${price}`);
@@ -473,23 +469,19 @@ class UniversalAPI {
     }
 
     async fetchForexPrice(asset) {
-        const symbols = {
-            usd_eur: 'EURUSD=X', usd_gbp: 'GBPUSD=X', usd_jpy: 'USDJPY=X', usd_cad: 'USDCAD=X',
-            usd_aud: 'AUDUSD=X', usd_chf: 'USDCHF=X', usd_cny: 'USDCNY=X', usd_inr: 'USDINR=X',
-            usd_zar: 'USDZAR=X', usd_aed: 'USDAED=X', usd_bhd: 'USDBHD=X'
+        const pairs = {
+            usd_eur: 'EUR', usd_gbp: 'GBP', usd_jpy: 'JPY', usd_cad: 'CAD',
+            usd_aud: 'AUD', usd_chf: 'CHF', usd_cny: 'CNY', usd_inr: 'INR',
+            usd_zar: 'ZAR', usd_aed: 'AED', usd_bhd: 'BHD'
         };
         
-        const symbol = symbols[asset];
-        if (!symbol) throw new Error(`Unsupported forex: ${asset}`);
+        const currency = pairs[asset];
+        if (!currency) throw new Error(`Unsupported forex: ${asset}`);
         
-        const apiUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
+        const apiUrl = `https://api.exchangerate-api.com/v4/latest/USD`;
         
         const data = await this.fetchWithTimeout(apiUrl);
-        let rate = data.chart?.result?.[0]?.meta?.regularMarketPrice;
-        
-        if (asset.includes('eur') || asset.includes('gbp') || asset.includes('aud')) {
-            rate = 1 / rate;
-        }
+        const rate = data.rates?.[currency];
         
         if (rate && rate > 0) {
             console.log(`${asset}: ${rate}`);
@@ -565,30 +557,29 @@ class UniversalAPI {
     }
 
     async fetchNews() {
-        const newsApis = [
-            'https://newsapi.org/v2/everything?q=bitcoin+gold+cryptocurrency&sortBy=publishedAt&apiKey=demo',
-            'https://api.currentsapi.services/v1/latest-news?category=business&apiKey=demo'
-        ];
-        
-        for (const apiUrl of newsApis) {
-            try {
-                const data = await this.fetchWithTimeout(apiUrl);
-                if (data.articles && data.articles.length > 0) {
-                    return data.articles.slice(0, 10);
-                }
-            } catch (error) {
-                console.warn('News API failed:', error.message);
-                continue;
+        // Use RSS feed proxy for CORS-free news
+        try {
+            const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.coindesk.com/arc/outboundfeeds/rss/');
+            const data = await response.json();
+            if (data.items && data.items.length > 0) {
+                return data.items.slice(0, 10).map(item => ({
+                    title: item.title,
+                    source: { name: 'CoinDesk' },
+                    publishedAt: item.pubDate,
+                    url: item.link
+                }));
             }
+        } catch (error) {
+            console.warn('News feed failed:', error);
         }
         
         // Fallback news
         return [
-            { title: "Bitcoin reaches new monthly high", source: { name: "CoinDesk" }, publishedAt: new Date().toISOString(), url: "https://www.coindesk.com" },
-            { title: "Gold prices surge amid uncertainty", source: { name: "Reuters" }, publishedAt: new Date(Date.now() - 3600000).toISOString(), url: "https://www.reuters.com" },
-            { title: "USD strengthens against major currencies", source: { name: "Bloomberg" }, publishedAt: new Date(Date.now() - 7200000).toISOString(), url: "https://www.bloomberg.com" },
-            { title: "Big Mac Index shows global trends", source: { name: "The Economist" }, publishedAt: new Date(Date.now() - 10800000).toISOString(), url: "https://www.economist.com" },
-            { title: "Cryptocurrency market shows resilience", source: { name: "CoinTelegraph" }, publishedAt: new Date(Date.now() - 14400000).toISOString(), url: "https://cointelegraph.com" }
+            { title: "Bitcoin reaches new monthly high", source: { name: "CoinDesk" }, publishedAt: new Date().toISOString(), url: "https://www.coindesk.com/price/bitcoin/" },
+            { title: "Gold prices surge amid uncertainty", source: { name: "Reuters" }, publishedAt: new Date(Date.now() - 3600000).toISOString(), url: "https://www.reuters.com/markets/commodities/" },
+            { title: "USD strengthens against major currencies", source: { name: "Bloomberg" }, publishedAt: new Date(Date.now() - 7200000).toISOString(), url: "https://www.bloomberg.com/markets/currencies" },
+            { title: "Ethereum network upgrade completed", source: { name: "CoinTelegraph" }, publishedAt: new Date(Date.now() - 10800000).toISOString(), url: "https://cointelegraph.com/tags/ethereum" },
+            { title: "Cryptocurrency market shows resilience", source: { name: "CoinDesk" }, publishedAt: new Date(Date.now() - 14400000).toISOString(), url: "https://www.coindesk.com/markets/" }
         ];
     }
 

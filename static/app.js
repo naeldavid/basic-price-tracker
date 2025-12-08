@@ -3,8 +3,12 @@ class PriceTracker {
         this.currentAsset = 'btc';
         this.currentCategory = 'crypto';
         this.allPrices = {};
+        this.priceHistory = {};
+        this.chart = null;
         this.api = new UniversalAPI();
         this.storage = new DataStorage();
+        this.settings = this.storage.loadSettings();
+        this.refreshInterval = null;
         this.init();
     }
 
@@ -17,13 +21,33 @@ class PriceTracker {
         this.setupCategoryTabs();
         this.setupAssetTabs();
         this.allPrices = { ...this.api.fallbackPrices };
+        this.initChart();
         this.updateDisplay();
         this.updateAssetsGrid();
+        this.loadNews();
+        this.setupHotkeys();
         
         setTimeout(() => {
             this.fetchAllPrices();
             this.startAutoRefresh();
         }, 100);
+    }
+
+    setupHotkeys() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            
+            if (e.code === 'Space') {
+                e.preventDefault();
+                refreshPrice();
+            } else if (e.key === 'a' || e.key === 'A') {
+                e.preventDefault();
+                document.querySelector('.chart-container')?.scrollIntoView({ behavior: 'smooth' });
+            } else if (e.key === 's' || e.key === 'S') {
+                e.preventDefault();
+                toggleSettings();
+            }
+        });
     }
 
     setupCategoryTabs() {
@@ -86,6 +110,7 @@ class PriceTracker {
             tab.classList.toggle('active', tab.textContent === this.api.getAssetInfo(asset)?.name);
         });
         this.updateDisplay();
+        this.updateChart();
     }
 
     async fetchAllPrices() {
@@ -105,11 +130,87 @@ class PriceTracker {
             this.allPrices = newPrices;
             this.api.lastPrices = { ...newPrices };
             this.api.saveLastPrices();
+            
+            this.updatePriceHistory();
             this.updateDisplay();
             this.updateAssetsGrid();
+            this.updateChart();
+            this.updateLastUpdateTime();
         } catch (error) {
             console.error('Error fetching prices:', error);
         }
+    }
+
+    updateLastUpdateTime() {
+        const el = document.getElementById('lastUpdate');
+        if (el) {
+            el.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+    }
+
+    updatePriceHistory() {
+        const timestamp = Date.now();
+        Object.keys(this.allPrices).forEach(asset => {
+            if (!this.priceHistory[asset]) {
+                this.priceHistory[asset] = [];
+            }
+            this.priceHistory[asset].unshift({
+                time: timestamp,
+                price: this.allPrices[asset]
+            });
+            if (this.priceHistory[asset].length > 20) {
+                this.priceHistory[asset] = this.priceHistory[asset].slice(0, 20);
+            }
+        });
+    }
+
+    initChart() {
+        const ctx = document.getElementById('priceChart');
+        if (!ctx) return;
+        
+        this.chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Price',
+                    data: [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#9ca3af' },
+                        grid: { color: '#374151' }
+                    },
+                    y: {
+                        ticks: { color: '#9ca3af' },
+                        grid: { color: '#374151' }
+                    }
+                }
+            }
+        });
+    }
+
+    updateChart() {
+        if (!this.chart) return;
+        
+        const history = this.priceHistory[this.currentAsset] || [];
+        const labels = history.slice().reverse().map((h, i) => i === 0 ? 'Now' : `${i * 5}m`);
+        const data = history.slice().reverse().map(h => h.price);
+        
+        this.chart.data.labels = labels;
+        this.chart.data.datasets[0].data = data;
+        this.chart.update();
     }
 
     updateDisplay() {
@@ -168,9 +269,35 @@ class PriceTracker {
         });
     }
 
+    async loadNews() {
+        const container = document.getElementById('newsContainer');
+        if (!container) return;
+        
+        try {
+            const news = await this.api.fetchNews();
+            container.innerHTML = '';
+            
+            news.forEach(article => {
+                const item = document.createElement('div');
+                item.className = 'news-item';
+                const newsUrl = article.url || article.link || '#';
+                item.innerHTML = `
+                    <a href="${newsUrl}" target="_blank" rel="noopener noreferrer" class="news-title">${article.title}</a>
+                    <div class="news-meta">${article.source.name} • ${new Date(article.publishedAt).toLocaleDateString()}</div>
+                `;
+                container.appendChild(item);
+            });
+        } catch (error) {
+            container.innerHTML = '<p style="color: var(--text-secondary);">Unable to load news</p>';
+        }
+    }
+
     calculateChange(asset) {
-        const current = this.allPrices[asset] || 0;
-        const previous = this.api.lastPrices[asset] || current;
+        const history = this.priceHistory[asset];
+        if (!history || history.length < 2) return 0;
+        
+        const current = history[0].price;
+        const previous = history[1].price;
         if (previous === 0) return 0;
         return ((current - previous) / previous) * 100;
     }
@@ -193,9 +320,16 @@ class PriceTracker {
     }
 
     startAutoRefresh() {
-        setInterval(() => {
-            if (navigator.onLine) this.fetchAllPrices();
-        }, 300000);
+        if (this.refreshInterval) clearInterval(this.refreshInterval);
+        
+        if (this.settings.autoRefresh) {
+            this.refreshInterval = setInterval(() => {
+                if (navigator.onLine) {
+                    this.fetchAllPrices();
+                    this.loadNews();
+                }
+            }, this.settings.refreshInterval);
+        }
     }
 
     setupAssetSelection() {
@@ -227,10 +361,23 @@ class PriceTracker {
             });
         });
     }
+
+    setupSettings() {
+        const autoRefreshEl = document.getElementById('autoRefresh');
+        const refreshIntervalEl = document.getElementById('refreshInterval');
+        const soundEnabledEl = document.getElementById('soundEnabled');
+        
+        if (autoRefreshEl) autoRefreshEl.checked = this.settings.autoRefresh;
+        if (refreshIntervalEl) refreshIntervalEl.value = this.settings.refreshInterval / 1000;
+        if (soundEnabledEl) soundEnabledEl.checked = this.settings.soundEnabled;
+    }
 }
 
 function refreshPrice() {
-    if (window.tracker) window.tracker.fetchAllPrices();
+    if (window.tracker) {
+        window.tracker.fetchAllPrices();
+        window.tracker.loadNews();
+    }
 }
 
 function toggleSettings() {
@@ -238,7 +385,10 @@ function toggleSettings() {
     if (panel) {
         const isVisible = panel.style.display === 'block';
         panel.style.display = isVisible ? 'none' : 'block';
-        if (!isVisible && window.tracker) window.tracker.setupAssetSelection();
+        if (!isVisible && window.tracker) {
+            window.tracker.setupAssetSelection();
+            window.tracker.setupSettings();
+        }
     }
 }
 
@@ -259,6 +409,25 @@ function saveAssetSelection() {
         window.tracker.updateAssetsGrid();
         toggleSettings();
     }
+}
+
+function saveSettings() {
+    if (!window.tracker) return;
+    
+    const autoRefresh = document.getElementById('autoRefresh')?.checked ?? true;
+    const refreshInterval = (document.getElementById('refreshInterval')?.value ?? 300) * 1000;
+    const soundEnabled = document.getElementById('soundEnabled')?.checked ?? true;
+    
+    window.tracker.settings = {
+        ...window.tracker.settings,
+        autoRefresh,
+        refreshInterval,
+        soundEnabled
+    };
+    
+    window.tracker.storage.saveSettings(window.tracker.settings);
+    window.tracker.startAutoRefresh();
+    alert('Settings saved!');
 }
 
 function resetConfiguration() {

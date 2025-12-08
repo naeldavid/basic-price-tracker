@@ -1,13 +1,13 @@
 :root {
-    --bg-primary: #0f172a;
-    --bg-secondary: #1e293b;
-    --bg-tertiary: #334155;
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
+    --bg-primary: #0a0e27;
+    --bg-secondary: #141b2d;
+    --bg-tertiary: #1f2937;
+    --text-primary: #e5e7eb;
+    --text-secondary: #9ca3af;
     --accent: #3b82f6;
     --positive: #10b981;
     --negative: #ef4444;
-    --border: #475569;
+    --border: #374151;
 }
 
 * {
@@ -17,14 +17,14 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 2rem;
 }
@@ -39,6 +39,7 @@ body {
 .header h1 {
     font-size: 2rem;
     font-weight: 600;
+    letter-spacing: -0.5px;
 }
 
 .header-actions {
@@ -77,6 +78,7 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     white-space: nowrap;
+    font-weight: 500;
 }
 
 .category-tab:hover {
@@ -117,17 +119,28 @@ body {
     border-color: var(--accent);
 }
 
+.main-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.price-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
 .price-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 1rem;
     padding: 2rem;
-    margin-bottom: 2rem;
-    text-align: center;
 }
 
 .asset-name {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 1rem;
     color: var(--text-secondary);
@@ -150,6 +163,64 @@ body {
 
 .price-change.negative {
     color: var(--negative);
+}
+
+.chart-container {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    height: 300px;
+}
+
+.chart-container h3 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+#priceChart {
+    width: 100%;
+    height: 250px;
+}
+
+.news-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.news-section h3 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.news-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.news-item:last-child {
+    border-bottom: none;
+}
+
+.news-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    display: block;
+}
+
+.news-title:hover {
+    color: var(--accent);
+}
+
+.news-meta {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
 }
 
 .assets-grid {
@@ -188,6 +259,7 @@ body {
     padding: 2rem;
     overflow-y: auto;
     z-index: 1000;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.5);
 }
 
 .panel-header {
@@ -241,6 +313,7 @@ body {
     border-radius: 0.5rem;
     cursor: pointer;
     font-size: 1rem;
+    font-weight: 500;
     transition: all 0.2s;
 }
 
@@ -256,11 +329,18 @@ body {
     border-radius: 0.5rem;
     cursor: pointer;
     font-size: 1rem;
+    font-weight: 500;
     transition: all 0.2s;
 }
 
 .btn-danger:hover {
     opacity: 0.9;
+}
+
+@media (max-width: 1024px) {
+    .main-content {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -274,5 +354,9 @@ body {
     
     .assets-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .current-price {
+        font-size: 2rem;
     }
 }
