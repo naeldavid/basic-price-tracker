@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade - Price Tracker</title>
+    <link rel="icon" type="image/x-icon" href="static/favicon.ico">
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="stylesheet" href="static/trading.css">
+</head>
+<body>
+    <nav class="main-nav">
+        <div class="nav-brand">Price Tracker</div>
+        <div class="nav-links">
+            <a href="index.html">Dashboard</a>
+            <a href="buysell.html" class="active">Trade</a>
+            <a href="#" onclick="showPortfolio()">Portfolio</a>
+        </div>
+        <div class="nav-user">
+            <span id="userBalance">$10,000.00</span>
+            <span id="navUserName"></span>
+        </div>
+    </nav>
+
+    <div class="trading-container">
+        <div class="market-overview">
+            <h2>Live Market Prices</h2>
+            <div class="market-grid" id="marketGrid"></div>
+        </div>
+
+        <div class="trading-panel">
+            <div class="trade-tabs">
+                <button class="trade-tab active" data-action="buy">Buy</button>
+                <button class="trade-tab" data-action="sell">Sell</button>
+            </div>
+
+            <div class="trade-form">
+                <div class="form-group">
+                    <label>Select Asset</label>
+                    <select id="assetSelect" onchange="updateTradeInfo()">
+                        <option value="">Choose asset...</option>
+                    </select>
+                </div>
+
+                <div class="asset-info" id="assetInfo" style="display:none;">
+                    <div class="info-row">
+                        <span>Current Price:</span>
+                        <span id="currentPrice">$0.00</span>
+                    </div>
+                    <div class="info-row">
+                        <span>24h Change:</span>
+                        <span id="priceChange">0.00%</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Your Holdings:</span>
+                        <span id="holdings">0</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" id="tradeAmount" placeholder="0.00" step="0.01" min="0" oninput="calculateTotal()">
+                    <div class="quick-amounts">
+                        <button onclick="setAmount(0.1)">0.1</button>
+                        <button onclick="setAmount(1)">1</button>
+                        <button onclick="setAmount(10)">10</button>
+                        <button onclick="setAmount('max')">Max</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Order Type</label>
+                    <select id="orderType" onchange="toggleLimitPrice()">
+                        <option value="market">Market Order</option>
+                        <option value="limit">Limit Order</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="limitPriceGroup" style="display:none;">
+                    <label>Limit Price</label>
+                    <input type="number" id="limitPrice" placeholder="0.00" step="0.01" min="0">
+                </div>
+
+                <div class="trade-summary">
+                    <div class="summary-row">
+                        <span>Total Cost:</span>
+                        <span id="totalCost">$0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Fee (0.1%):</span>
+                        <span id="tradeFee">$0.00</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Final Amount:</span>
+                        <span id="finalAmount">$0.00</span>
+                    </div>
+                </div>
+
+                <button class="btn-trade buy" id="tradeBtn" onclick="executeTrade()">
+                    <span id="tradeBtnText">Buy Now</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="portfolio-panel" id="portfolioPanel">
+            <h2>Your Portfolio</h2>
+            <div class="portfolio-stats">
+                <div class="stat-card">
+                    <div class="stat-label">Total Value</div>
+                    <div class="stat-value" id="portfolioValue">$10,000.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total P&L</div>
+                    <div class="stat-value" id="totalPnL">$0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Available Cash</div>
+                    <div class="stat-value" id="availableCash">$10,000.00</div>
+                </div>
+            </div>
+            <div class="holdings-list" id="holdingsList"></div>
+        </div>
+
+        <div class="order-history">
+            <h2>Order History</h2>
+            <div class="history-filters">
+                <button class="filter-btn active" onclick="filterOrders('all')">All</button>
+                <button class="filter-btn" onclick="filterOrders('buy')">Buys</button>
+                <button class="filter-btn" onclick="filterOrders('sell')">Sells</button>
+                <button class="filter-btn" onclick="filterOrders('pending')">Pending</button>
+            </div>
+            <div class="orders-list" id="ordersList"></div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <!-- Quick Start Guide Modal -->
+    <div class="modal-overlay" id="quickStartModal" style="display:none;">
+        <div class="modal-content">
+            <h2>Welcome to Trading!</h2>
+            <div class="guide-content">
+                <div class="guide-step">
+                    <span class="step-number">1</span>
+                    <div class="step-text">
+                        <h3>Select an Asset</h3>
+                        <p>Click any market card or use the dropdown menu</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <span class="step-number">2</span>
+                    <div class="step-text">
+                        <h3>Choose Buy or Sell</h3>
+                        <p>Switch between tabs to buy new assets or sell holdings</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <span class="step-number">3</span>
+                    <div class="step-text">
+                        <h3>Enter Amount</h3>
+                        <p>Type quantity or use quick buttons (0.1, 1, 10, Max)</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <span class="step-number">4</span>
+                    <div class="step-text">
+                        <h3>Execute Trade</h3>
+                        <p>Review the summary and click Buy/Sell to confirm</p>
+                    </div>
+                </div>
+                <div class="guide-info">
+                    <p><strong>Starting Balance:</strong> $10,000</p>
+                    <p><strong>Trading Fee:</strong> 0.1% per transaction</p>
+                    <p><strong>Updates:</strong> Prices refresh every 30 seconds</p>
+                </div>
+            </div>
+            <button class="btn-trade buy" onclick="closeQuickStart()">Start Trading!</button>
+            <label style="margin-top:1rem;display:block;text-align:center;">
+                <input type="checkbox" id="dontShowAgain"> Don't show this again
+            </label>
+        </div>
+    </div>
+
+    <script src="static/core.js"></script>
+    <script src="static/trading.js"></script>
+</body>
+</html>

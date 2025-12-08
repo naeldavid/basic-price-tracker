@@ -211,51 +211,51 @@ class UniversalAPI {
         
         this.assets = {
             // Cryptocurrencies
-            btc: { symbol: 'BTC', name: 'Bitcoin', emoji: '₿', type: 'crypto' },
-            eth: { symbol: 'ETH', name: 'Ethereum', emoji: '⟠', type: 'crypto' },
-            bnb: { symbol: 'BNB', name: 'Binance Coin', emoji: '🔶', type: 'crypto' },
-            ada: { symbol: 'ADA', name: 'Cardano', emoji: '🌐', type: 'crypto' },
-            sol: { symbol: 'SOL', name: 'Solana', emoji: '☀️', type: 'crypto' },
-            xrp: { symbol: 'XRP', name: 'Ripple', emoji: '🌊', type: 'crypto' },
-            dot: { symbol: 'DOT', name: 'Polkadot', emoji: '🔴', type: 'crypto' },
-            doge: { symbol: 'DOGE', name: 'Dogecoin', emoji: '🐶', type: 'crypto' },
-            avax: { symbol: 'AVAX', name: 'Avalanche', emoji: '⛰️', type: 'crypto' },
-            matic: { symbol: 'MATIC', name: 'Polygon', emoji: '🔷', type: 'crypto' },
+            btc: { symbol: 'BTC', name: 'Bitcoin', type: 'crypto' },
+            eth: { symbol: 'ETH', name: 'Ethereum', type: 'crypto' },
+            bnb: { symbol: 'BNB', name: 'Binance Coin', type: 'crypto' },
+            ada: { symbol: 'ADA', name: 'Cardano', type: 'crypto' },
+            sol: { symbol: 'SOL', name: 'Solana', type: 'crypto' },
+            xrp: { symbol: 'XRP', name: 'Ripple', type: 'crypto' },
+            dot: { symbol: 'DOT', name: 'Polkadot', type: 'crypto' },
+            doge: { symbol: 'DOGE', name: 'Dogecoin', type: 'crypto' },
+            avax: { symbol: 'AVAX', name: 'Avalanche', type: 'crypto' },
+            matic: { symbol: 'MATIC', name: 'Polygon', type: 'crypto' },
             
             // Precious Metals
-            gold: { symbol: 'XAU', name: 'Gold', emoji: '🥇', type: 'metal' },
-            silver: { symbol: 'XAG', name: 'Silver', emoji: '🥈', type: 'metal' },
-            platinum: { symbol: 'XPT', name: 'Platinum', emoji: '⬜', type: 'metal' },
-            palladium: { symbol: 'XPD', name: 'Palladium', emoji: '🔘', type: 'metal' },
+            gold: { symbol: 'XAU', name: 'Gold', type: 'metal' },
+            silver: { symbol: 'XAG', name: 'Silver', type: 'metal' },
+            platinum: { symbol: 'XPT', name: 'Platinum', type: 'metal' },
+            palladium: { symbol: 'XPD', name: 'Palladium', type: 'metal' },
             
             // Major Currencies
-            usd_eur: { symbol: 'EUR', name: 'USD to Euro', emoji: '🇪🇺', type: 'currency' },
-            usd_gbp: { symbol: 'GBP', name: 'USD to Pound', emoji: '🇬🇧', type: 'currency' },
-            usd_jpy: { symbol: 'JPY', name: 'USD to Yen', emoji: '🇯🇵', type: 'currency' },
-            usd_cad: { symbol: 'CAD', name: 'USD to Canadian Dollar', emoji: '🇨🇦', type: 'currency' },
-            usd_aud: { symbol: 'AUD', name: 'USD to Australian Dollar', emoji: '🇦🇺', type: 'currency' },
-            usd_chf: { symbol: 'CHF', name: 'USD to Swiss Franc', emoji: '🇨🇭', type: 'currency' },
-            usd_cny: { symbol: 'CNY', name: 'USD to Chinese Yuan', emoji: '🇨🇳', type: 'currency' },
-            usd_inr: { symbol: 'INR', name: 'USD to Indian Rupee', emoji: '🇮🇳', type: 'currency' },
-            usd_aed: { symbol: 'AED', name: 'USD to UAE Dirham', emoji: '🇦🇪', type: 'currency' },
-            usd_bhd: { symbol: 'BHD', name: 'USD to Bahraini Dinar', emoji: '🇧🇭', type: 'currency' },
+            usd_eur: { symbol: 'EUR', name: 'USD to Euro', type: 'currency' },
+            usd_gbp: { symbol: 'GBP', name: 'USD to Pound', type: 'currency' },
+            usd_jpy: { symbol: 'JPY', name: 'USD to Yen', type: 'currency' },
+            usd_cad: { symbol: 'CAD', name: 'USD to Canadian Dollar', type: 'currency' },
+            usd_aud: { symbol: 'AUD', name: 'USD to Australian Dollar', type: 'currency' },
+            usd_chf: { symbol: 'CHF', name: 'USD to Swiss Franc', type: 'currency' },
+            usd_cny: { symbol: 'CNY', name: 'USD to Chinese Yuan', type: 'currency' },
+            usd_inr: { symbol: 'INR', name: 'USD to Indian Rupee', type: 'currency' },
+            usd_aed: { symbol: 'AED', name: 'USD to UAE Dirham', type: 'currency' },
+            usd_bhd: { symbol: 'BHD', name: 'USD to Bahraini Dinar', type: 'currency' },
             
             // World Currencies
-            usd_krw: { symbol: 'KRW', name: 'USD to Korean Won', emoji: '🇰🇷', type: 'currency' },
-            usd_brl: { symbol: 'BRL', name: 'USD to Brazilian Real', emoji: '🇧🇷', type: 'currency' },
-            usd_mxn: { symbol: 'MXN', name: 'USD to Mexican Peso', emoji: '🇲🇽', type: 'currency' },
-            usd_rub: { symbol: 'RUB', name: 'USD to Russian Ruble', emoji: '🇷🇺', type: 'currency' },
-            usd_try: { symbol: 'TRY', name: 'USD to Turkish Lira', emoji: '🇹🇷', type: 'currency' },
-            usd_zar: { symbol: 'ZAR', name: 'USD to South African Rand', emoji: '🇿🇦', type: 'currency' },
-            usd_nok: { symbol: 'NOK', name: 'USD to Norwegian Krone', emoji: '🇳🇴', type: 'currency' },
-            usd_sek: { symbol: 'SEK', name: 'USD to Swedish Krona', emoji: '🇸🇪', type: 'currency' },
+            usd_krw: { symbol: 'KRW', name: 'USD to Korean Won', type: 'currency' },
+            usd_brl: { symbol: 'BRL', name: 'USD to Brazilian Real', type: 'currency' },
+            usd_mxn: { symbol: 'MXN', name: 'USD to Mexican Peso', type: 'currency' },
+            usd_rub: { symbol: 'RUB', name: 'USD to Russian Ruble', type: 'currency' },
+            usd_try: { symbol: 'TRY', name: 'USD to Turkish Lira', type: 'currency' },
+            usd_zar: { symbol: 'ZAR', name: 'USD to South African Rand', type: 'currency' },
+            usd_nok: { symbol: 'NOK', name: 'USD to Norwegian Krone', type: 'currency' },
+            usd_sek: { symbol: 'SEK', name: 'USD to Swedish Krona', type: 'currency' },
             
             // Big Mac Index
-            bigmac_us: { symbol: 'US', name: 'Big Mac USA', emoji: '🇺🇸', type: 'bigmac' },
-            bigmac_uk: { symbol: 'UK', name: 'Big Mac UK', emoji: '🇬🇧', type: 'bigmac' },
-            bigmac_jp: { symbol: 'JP', name: 'Big Mac Japan', emoji: '🇯🇵', type: 'bigmac' },
-            bigmac_eu: { symbol: 'EU', name: 'Big Mac EU', emoji: '🇪🇺', type: 'bigmac' },
-            bigmac_ca: { symbol: 'CA', name: 'Big Mac Canada', emoji: '🇨🇦', type: 'bigmac' }
+            bigmac_us: { symbol: 'US', name: 'Big Mac USA', type: 'bigmac' },
+            bigmac_uk: { symbol: 'UK', name: 'Big Mac UK', type: 'bigmac' },
+            bigmac_jp: { symbol: 'JP', name: 'Big Mac Japan', type: 'bigmac' },
+            bigmac_eu: { symbol: 'EU', name: 'Big Mac EU', type: 'bigmac' },
+            bigmac_ca: { symbol: 'CA', name: 'Big Mac Canada', type: 'bigmac' }
         };
         
         this.fallbackPrices = {
@@ -1395,7 +1395,7 @@ class AlertSystem {
         notification.className = 'alert-notification';
         notification.innerHTML = `
             <div class="alert-content">
-                <strong>🚨 Price Alert</strong>
+                <strong>Price Alert</strong>
                 <p>${alert.message}</p>
                 <small>${new Date().toLocaleTimeString()}</small>
             </div>

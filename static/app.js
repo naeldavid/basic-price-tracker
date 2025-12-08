@@ -2,7 +2,7 @@
 class CoinAnimation {
     constructor() {
         this.coins = [];
-        this.coinEmojis = ['💰', '🥇', '💎', '₿'];
+        this.coinEmojis = ['$', 'G', 'D', 'B'];
         this.animationSpeed = 500; // milliseconds between coins
         this.fallDuration = { min: 4, max: 9 }; // seconds
         this.isRunning = false;
@@ -830,7 +830,7 @@ class UniversalTracker {
                 if (assetInfo) {
                     const option = document.createElement('option');
                     option.value = asset;
-                    option.textContent = `${assetInfo.emoji} ${assetInfo.name}`;
+                    option.textContent = `${assetInfo.name}`;
                     alertAssetSelect.appendChild(option);
                 }
             });
@@ -891,11 +891,11 @@ class UniversalTracker {
         }
         if (bestPerformerEl) {
             const assetInfo = this.api.getAssetInfo(bestPerformer.asset);
-            bestPerformerEl.textContent = assetInfo ? `${assetInfo.emoji} ${assetInfo.name} (+${bestPerformer.change.toFixed(2)}%)` : '-';
+            bestPerformerEl.textContent = assetInfo ? `${assetInfo.name} (+${bestPerformer.change.toFixed(2)}%)` : '-';
         }
         if (worstPerformerEl) {
             const assetInfo = this.api.getAssetInfo(worstPerformer.asset);
-            worstPerformerEl.textContent = assetInfo ? `${assetInfo.emoji} ${assetInfo.name} (${worstPerformer.change.toFixed(2)}%)` : '-';
+            worstPerformerEl.textContent = assetInfo ? `${assetInfo.name} (${worstPerformer.change.toFixed(2)}%)` : '-';
         }
     }
 
@@ -918,7 +918,7 @@ class UniversalTracker {
                 card.className = 'prediction-card';
                 card.innerHTML = `
                     <div class="prediction-header">
-                        <span class="prediction-asset">${assetInfo.emoji} ${assetInfo.name}</span>
+                        <span class="prediction-asset">${assetInfo.name}</span>
                         <span class="prediction-confidence">${prediction?.confidence || 0}% confidence</span>
                     </div>
                     <div class="prediction-value">
@@ -950,7 +950,7 @@ class UniversalTracker {
             return `
                 <div class="alert-item">
                     <div class="alert-info">
-                        <span class="alert-asset">${assetInfo?.emoji} ${assetInfo?.name}</span>
+                        <span class="alert-asset">${assetInfo?.name}</span>
                         <span class="alert-condition">${alert.type} ${alert.value}</span>
                     </div>
                     <div class="alert-actions">
@@ -1128,7 +1128,7 @@ class UniversalTracker {
             const tab = document.createElement('button');
             tab.className = `asset-tab ${asset === this.currentAsset ? 'active' : ''}`;
             tab.dataset.asset = asset;
-            tab.textContent = `${assetInfo.emoji} ${assetInfo.name}`;
+            tab.textContent = `${assetInfo.name}`;
             tab.setAttribute('aria-label', `Select ${assetInfo.name}`);
             tab.onclick = () => this.switchAsset(asset);
             
@@ -1163,7 +1163,7 @@ class UniversalTracker {
         const assetInfo = this.api.getAssetInfo(asset);
         const header = document.getElementById('metalHeader');
         if (header && assetInfo) {
-            header.textContent = `${assetInfo.emoji} ${assetInfo.name}`;
+            header.textContent = `${assetInfo.name}`;
         }
         
         // Update current price from allPrices and refresh display
@@ -1236,7 +1236,7 @@ class UniversalTracker {
             }
             
             this.hideLoadingOverlay();
-            this.showUpdateNotification('✅ Prices updated successfully');
+            this.showUpdateNotification('Prices updated successfully');
             
             // Update performance metrics display
             this.updatePerformanceDisplay();
@@ -1257,7 +1257,7 @@ class UniversalTracker {
             }
             
             this.hideLoadingOverlay();
-            this.showErrorNotification('⚠️ Using fallback prices - API temporarily unavailable');
+            this.showErrorNotification('Using fallback prices - API temporarily unavailable');
         }
     }
 
@@ -1301,10 +1301,10 @@ class UniversalTracker {
                 }
             };
             
-            const trendIcon = trend > 0 ? '📈' : trend < 0 ? '📉' : '➡️';
+            const trendIcon = trend > 0 ? '↑' : trend < 0 ? '↓' : '→';
             
             card.innerHTML = `
-                <div style="font-size: 1.5em;">${assetInfo.emoji}</div>
+                <div style="font-weight: 600;">${assetInfo.symbol}</div>
                 <div style="font-weight: 600; font-size: 0.9em;">${assetInfo.name}</div>
                 <div style="font-size: 1.1em; margin: 5px 0;">${this.formatPrice(price, asset)}</div>
                 <div class="${change >= 0 ? 'positive' : 'negative'}" style="font-size: 0.8em;">
@@ -2206,12 +2206,12 @@ function saveAssetSelection() {
         window.universalTracker.setupCategoryTabs();
         window.universalTracker.setupAssetTabs();
         window.universalTracker.updateAssetsOverview();
-        window.universalTracker.showUpdateNotification('✅ Asset selection saved!');
+        window.universalTracker.showUpdateNotification('Asset selection saved!');
     }
 }
 
 function resetConfiguration() {
-    if (confirm('⚠️ Are you sure you want to reset all settings? This will clear your name, asset selection, and return you to the setup page.')) {
+    if (confirm('Are you sure you want to reset all settings? This will clear your name, asset selection, and return you to the setup page.')) {
         ['setupComplete', 'userName', 'userSelectedAssets', 'baseCurrency', 'lastAssetPrices', 'selectedTheme', 'priceAlerts', 'appSettings'].forEach(key => {
             localStorage.removeItem(key);
             sessionStorage.removeItem(key);

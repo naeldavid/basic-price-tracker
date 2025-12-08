@@ -1,40 +1,49 @@
-# 💰 Basic Price Tracker
+# Basic Price Tracker - Full Trading Platform
 
-A simple, real-time multi-asset tracking web application with analytics, portfolio management, and clean interface powered by Yahoo Finance APIs.
+A complete real-time trading platform for cryptocurrencies, precious metals, and currencies with live buy/sell functionality, portfolio management, and advanced analytics powered by Yahoo Finance APIs.
 
-## ✨ Key Features
+## Key Features
 
-### 📊 Multi-Asset Support
+### Live Trading Platform
+- **Buy & Sell Assets**: Real-time trading for crypto, metals, and currencies
+- **Market Orders**: Instant execution at current market prices
+- **Limit Orders**: Set your desired price points
+- **Portfolio Management**: Track holdings, P&L, and performance
+- **Order History**: Complete transaction records
+- **Trading Fees**: Transparent 0.1% fee structure
+- **Virtual Balance**: Start with $10,000 demo account
+
+### Multi-Asset Support
 - **Cryptocurrencies**: Bitcoin, Ethereum, BNB, Cardano, Solana, XRP, Polkadot, Dogecoin, Avalanche, Polygon
 - **Precious Metals**: Gold, Silver, Platinum, Palladium
 - **Major Currencies**: EUR, GBP, JPY, CAD, AUD, CHF, CNY, INR, AED, BHD
 - **Big Mac Index**: Economic indicator across 5 countries
 
-### 🔄 Real-Time Data
+### Real-Time Data
 - **Yahoo Finance Integration**: Live market data without API keys
 - **No Cached Data**: Always fresh, real-time prices
 - **Error Handling**: Clean failures with user notifications
 - **Auto-Refresh**: Configurable update intervals
 
-### 🎯 Advanced Interface
+### Advanced Interface
 - **Category Navigation**: Organized tabs for crypto, metals, currencies, economic indicators
 - **Asset Selection**: Customizable tracking with setup wizard
 - **Portfolio Management**: Separate tracking vs portfolio selection
 - **Professional Design**: Inter font, square edges, business-grade appearance
 
-### 📈 Analytics & Charts
+### Analytics & Charts
 - **Custom SVG Charts**: Multi-asset comparison with proper scaling
 - **Technical Indicators**: RSI, Moving Averages, Volatility, MACD
 - **Market Sentiment**: Trend analysis and predictions
 - **Price History**: Comprehensive historical data tracking
 
-### 🚨 Smart Alerts
+### Smart Alerts
 - **Multiple Alert Types**: Price thresholds, percentage changes
 - **Browser Notifications**: Desktop alerts with sound
 - **Visual Notifications**: In-app alert system
 - **Alert History**: Track triggered alerts
 
-### 🎨 Themes & Customization
+### Themes & Customization
 - **4 Professional Themes**: Dark, Light, Gold, Blue
 - **Theme Switching**: Instant theme changes
 - **Custom Animations**: Configurable coin rain animation
@@ -42,7 +51,7 @@ A simple, real-time multi-asset tracking web application with analytics, portfol
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
@@ -58,7 +67,31 @@ A simple, real-time multi-asset tracking web application with analytics, portfol
 
 ---
 
-## 🛠️ Technical Architecture
+## Trading Features
+
+### Real-Time Trading
+- **Live Market Data**: 30-second price updates
+- **Instant Execution**: Market orders execute immediately
+- **Smart Validation**: Prevents insufficient funds/holdings
+- **Fee Calculation**: Automatic 0.1% trading fee
+- **Quick Amount Buttons**: 0.1, 1, 10, or Max shortcuts
+
+### Portfolio Analytics
+- **Total Portfolio Value**: Real-time valuation
+- **Profit & Loss Tracking**: Overall and per-asset P&L
+- **Average Buy Price**: Automatic cost basis calculation
+- **Holdings Overview**: All positions at a glance
+- **Cash Management**: Available balance tracking
+
+### Order Management
+- **Order History**: Complete transaction log
+- **Filter Options**: View all, buys, sells, or pending
+- **Order Details**: Timestamp, price, amount, total
+- **Status Tracking**: Completed and pending orders
+
+---
+
+## Technical Architecture
 
 ### Frontend Stack
 - **Vanilla JavaScript**: Modular ES6+ architecture
@@ -76,6 +109,7 @@ A simple, real-time multi-asset tracking web application with analytics, portfol
 ### Core Classes
 ```javascript
 UniversalAPI        // Yahoo Finance integration
+TradingPlatform     // Buy/sell execution engine
 DataStorage         // LocalStorage with compression
 Analytics           // Technical analysis & indicators
 AlertSystem         // Notification management
@@ -87,7 +121,7 @@ CoinAnimation       // Background animations
 
 ---
 
-## 📱 Features Breakdown
+## Features Breakdown
 
 ### Setup & Onboarding
 - **User Registration**: Name input and welcome
@@ -121,17 +155,19 @@ CoinAnimation       // Background animations
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 1. **Open Application**: Launch `nael.openlab.fr/basic-price-tracker` in a modern browser
 2. **Complete Setup**: Enter name and select assets to track
-3. **Explore Interface**: Navigate categories and view real-time prices
-4. **Customize Experience**: Adjust themes, alerts, and settings
-5. **Monitor Markets**: Use keyboard shortcuts for quick actions
+3. **Explore Dashboard**: Navigate categories and view real-time prices
+4. **Start Trading**: Click "Trade Now" to access the trading platform
+5. **Buy/Sell Assets**: Execute trades with your $10,000 virtual balance
+6. **Monitor Portfolio**: Track your holdings and performance
+7. **Customize Experience**: Adjust themes, alerts, and settings
 
 ---
 
-## 📊 Supported Assets
+## Supported Assets
 
 ### Cryptocurrencies (10)
 - Bitcoin (BTC), Ethereum (ETH), Binance Coin (BNB)
@@ -149,7 +185,7 @@ CoinAnimation       // Background animations
 
 ---
 
-## 🔧 Configuration
+## Configuration
 
 ### Theme Options
 - **Dark**: Professional dark mode
@@ -171,7 +207,7 @@ CoinAnimation       // Background animations
 
 ---
 
-## 💡 Advanced Features
+## Advanced Features
 
 ### Accessibility
 - **Keyboard Navigation**: Full keyboard support
@@ -193,17 +229,19 @@ CoinAnimation       // Background animations
 
 ---
 
-## 🎯 Use Cases
+## Use Cases
 
-- **Personal Investment**: Track crypto and traditional assets
+- **Trading Practice**: Learn trading with virtual money
+- **Portfolio Simulation**: Test investment strategies risk-free
 - **Market Research**: Analyze trends and patterns
 - **Educational Tool**: Learn about different asset classes
 - **Professional Trading**: Monitor multiple markets simultaneously
 - **Economic Analysis**: Big Mac Index and currency tracking
+- **Day Trading Practice**: Execute multiple trades and track performance
 
 ---
 
-## 🔒 Privacy & Security
+## Privacy & Security
 
 - **No External Accounts**: No registration required
 - **Local Data Storage**: All data stored locally
@@ -212,7 +250,7 @@ CoinAnimation       // Background animations
 
 ---
 
-## 📈 Future Enhancements
+## Future Enhancements
 
 - Additional asset classes (commodities, indices)
 - Advanced charting tools and indicators
@@ -223,19 +261,45 @@ CoinAnimation       // Background animations
 
 ---
 
-## 🏗️ File Structure
+## File Structure
 
 ```
-basic-gold-price-tracker/
-├── index.html          # Main application
+basic-price-tracker/
+├── index.html          # Main dashboard
 ├── setup.html          # Onboarding wizard
+├── buysell.html        # Trading platform
 ├── static/
 │   ├── core.js         # Backend classes (2000+ lines)
-│   ├── app.js          # Frontend logic (2000+ lines)
-│   └── style.css       # Professional styling
+│   ├── app.js          # Dashboard logic (2000+ lines)
+│   ├── trading.js      # Trading engine
+│   ├── trading.css     # Trading platform styles
+│   └── style.css       # Main styling
 └── README.md           # This file
 ```
 
 ---
 
-**Built with ❤️ using Vanilla JavaScript and Yahoo Finance APIs**
+## Trading Security
+
+- **Virtual Trading**: All trades use demo money (no real funds)
+- **Local Storage**: Portfolio data stored locally in browser
+- **No Registration**: No account creation required
+- **Privacy First**: No data sent to external servers
+- **Reset Anytime**: Clear portfolio and start fresh
+
+---
+
+## Trading Statistics
+
+- **Assets Available**: 40+ tradable assets
+- **Asset Classes**: Crypto, Metals, Currencies, Economic Indicators
+- **Starting Balance**: $10,000 virtual USD
+- **Trading Fee**: 0.1% per transaction
+- **Price Updates**: Every 30 seconds
+- **Order Types**: Market and Limit orders
+
+---
+
+**Built with Vanilla JavaScript and Yahoo Finance APIs**
+
+**Trade responsibly. This is a simulation platform for educational purposes.**
