@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Tracker</title>
     <link rel="icon" type="image/x-icon" href="static/favicon.ico">
+    <link rel="manifest" href="static/manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,8 +15,10 @@
 <body>
     <div class="container">
         <header class="header">
+            <div id="greeting" class="greeting"></div>
             <h1>Price Tracker</h1>
             <div class="header-actions">
+                <button class="btn-icon" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
                 <button class="btn-icon" onclick="refreshPrice()" title="Refresh">↻</button>
                 <button class="btn-icon" onclick="toggleSettings()" title="Settings">⚙</button>
             </div>
@@ -36,6 +39,7 @@
                     <div class="asset-name" id="assetName">Bitcoin</div>
                     <div class="current-price" id="currentPrice">Loading...</div>
                     <div class="price-change" id="priceChange"></div>
+                    <div id="analyticsIndicators"></div>
                     <div style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
                         <span id="lastUpdate">Last updated: Never</span>
                     </div>
@@ -91,10 +95,16 @@
                         Enable sound alerts
                     </label>
                     <button onclick="addPriceAlert()" class="btn-primary" style="margin-top: 0.5rem;">Add Price Alert</button>
+                    <div style="margin-top: 1rem;">
+                        <h5 style="margin-bottom: 0.5rem;">Active Alerts</h5>
+                        <div id="activeAlerts"></div>
+                    </div>
                 </div>
                 
                 <div class="setting-group">
-                    <h4>Data</h4>
+                    <h4>Data Management</h4>
+                    <button onclick="exportData()" class="btn-primary" style="margin-bottom: 0.5rem;">Export Data</button>
+                    <button onclick="importData()" class="btn-primary" style="margin-bottom: 0.5rem;">Import Data</button>
                     <button onclick="resetConfiguration()" class="btn-danger">Reset All</button>
                 </div>
             </div>
@@ -126,13 +136,37 @@
         if (setupComplete !== 'true' || !userName || !selectedAssets) {
             window.location.href = 'setup.html';
         } else {
-            const scripts = ['static/core.js', 'static/app.js'];
-            scripts.forEach(src => {
-                const script = document.createElement('script');
-                script.src = src;
-                document.head.appendChild(script);
-            });
+            // Load core scripts synchronously after validation
+            const load = src => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = false; // ensure order
+                document.head.appendChild(s);
+            };
+            load('static/logger.js');
+            load('static/core.js');
+            load('static/app.js');
         }
     </script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let userName = localStorage.getItem('userName');
+    if (!userName) {
+        userName = prompt('Enter your name:');
+        if (userName) {
+            localStorage.setItem('userName', userName);
+            // Redirect to asset selection after setting name
+            window.location.href = 'asset-select.html';
+            return;
+        }
+    }
+    const greetingEl = document.getElementById('greeting');
+    if (greetingEl && userName) {
+        const hour = new Date().getHours();
+        const period = hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
+        greetingEl.textContent = `Good ${period}, ${userName}`;
+    }
+});
+</script>
 </body>
 </html>

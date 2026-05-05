@@ -29,7 +29,7 @@ class WebSocketManager {
             const connectionId = Date.now() + Math.random();
             
             ws.onopen = () => {
-                console.log('WebSocket connected:', url);
+                window.logger && window.logger.debug('WebSocket connected:', url);
                 this.reconnectAttempts = 0;
                 if (options.onOpen) options.onOpen();
             };
@@ -40,27 +40,27 @@ class WebSocketManager {
                         const data = JSON.parse(event.data);
                         options.onMessage(data);
                     } catch (error) {
-                        console.error('WebSocket message parse error:', error);
+                        window.logger && window.logger.error('WebSocket message parse error:', error);
                     }
                 }
             };
             
             ws.onclose = () => {
-                console.log('WebSocket closed:', url);
+                window.logger && window.logger.debug('WebSocket closed:', url);
                 this.connections.delete(connectionId);
                 if (options.onClose) options.onClose();
                 this.attemptReconnect(url, options);
             };
             
             ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
+                window.logger && window.logger.error('WebSocket error:', error);
                 if (options.onError) options.onError(error);
             };
             
             this.connections.set(connectionId, { ws, url, options });
             return connectionId;
         } catch (error) {
-            console.error('WebSocket connection failed:', error);
+            window.logger && window.logger.error('WebSocket connection failed:', error);
             return null;
         }
     }
@@ -74,7 +74,7 @@ class WebSocketManager {
         const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
         
         setTimeout(() => {
-            console.log(`Reconnecting WebSocket (attempt ${this.reconnectAttempts})...`);
+            window.logger && window.logger.debug(`Reconnecting WebSocket (attempt ${this.reconnectAttempts})...`);
             this.connect(url, options);
         }, delay);
     }
@@ -258,11 +258,16 @@ class UniversalAPI {
             bigmac_ca: { symbol: 'CA', name: 'Big Mac Canada', type: 'bigmac' }
         };
         
+        this.apiKeys = {
+            coingecko: 'CG-Ux17qXjkLmH5bECLpn3qxFMp',
+            metalprice: '16b5a1613fae4f9c92989092b4bb75e7',
+            forexrate: '7bb89b804d720ea84d06b43ec832bd77'
+        };
         this.fallbackPrices = {
             // Crypto
             btc: 43000, eth: 2600, bnb: 240, ada: 0.38, sol: 60, xrp: 0.52, dot: 5.2, doge: 0.08, avax: 12, matic: 0.75,
             // Metals
-            gold: 2050, silver: 24.5, platinum: 950, palladium: 1200,
+            gold: 4859.85, silver: 24.5, platinum: 950, palladium: 1200,
             // Major Currencies
             usd_eur: 0.92, usd_gbp: 0.79, usd_jpy: 150, usd_cad: 1.35, usd_aud: 1.52, usd_chf: 0.88, usd_cny: 7.25, usd_inr: 83.2, usd_aed: 3.67, usd_bhd: 0.38,
             // World Currencies
@@ -271,7 +276,7 @@ class UniversalAPI {
             bigmac_us: 5.69, bigmac_uk: 4.89, bigmac_jp: 450, bigmac_eu: 5.15, bigmac_ca: 6.77
         };
         
-        this.lastPrices = JSON.parse(localStorage.getItem('lastAssetPrices')) || this.fallbackPrices;
+        this.lastPrices = JSON.parse(localStorage.getItem('lastAssetPrices')) || {};
         this.userSelectedAssets = JSON.parse(localStorage.getItem('userSelectedAssets')) || [];
         this.apiCallCount = 0;
         this.rateLimitDelay = 1000;
@@ -291,7 +296,7 @@ class UniversalAPI {
         if ('serviceWorker' in navigator) {
             try {
                 const registration = await navigator.serviceWorker.register('./static/sw.js');
-                console.log('Service Worker registered:', registration);
+                window.logger && window.logger.debug('Service Worker registered:', registration);
                 
                 // Listen for messages from service worker
                 navigator.serviceWorker.addEventListener('message', (event) => {
@@ -300,10 +305,10 @@ class UniversalAPI {
                 
                 // Check for updates
                 registration.addEventListener('updatefound', () => {
-                    console.log('Service Worker update found');
+                    window.logger && window.logger.debug('Service Worker update found');
                 });
             } catch (error) {
-                console.warn('Service Worker registration failed:', error);
+                window.logger && window.logger.warn('Service Worker registration failed:', error);
             }
         }
     }
@@ -374,6 +379,22 @@ class UniversalAPI {
         }
     }
 
+    async requestWithRetry(url, attempts = 3, timeout = 8000) {
+        let lastError;
+        for (let i = 0; i < attempts; i++) {
+            try {
+                return await this.fetchWithTimeout(url, timeout);
+            } catch (err) {
+                lastError = err;
+                if (i < attempts - 1) {
+                    const backoff = Math.pow(2, i) * 1000;
+                    await new Promise(res => setTimeout(res, backoff));
+                }
+            }
+        }
+        throw lastError;
+    }
+
     resetCircuitBreaker() {
         this.circuitBreaker.failures = 0;
         this.circuitBreaker.state = 'CLOSED';
@@ -385,7 +406,7 @@ class UniversalAPI {
         
         if (this.circuitBreaker.failures >= this.circuitBreaker.threshold) {
             this.circuitBreaker.state = 'OPEN';
-            console.warn('Circuit breaker opened due to repeated failures');
+            window.logger && window.logger.warn('Circuit breaker opened due to repeated failures');
         }
     }
 
@@ -434,13 +455,14 @@ class UniversalAPI {
         
         if (!symbol) throw new Error(`Unsupported crypto: ${asset}`);
         
-        const apiUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${symbol}&vs_currencies=usd`;
+        const apiUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${symbol}&vs_currencies=usd&x_cg_demo_api_key=${this.apiKeys.coingecko}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
         
-        const data = await this.fetchWithTimeout(apiUrl);
+        const data = await this.requestWithRetry(proxyUrl);
         const price = data[symbol]?.usd;
         
         if (price && price > 0) {
-            console.log(`${asset.toUpperCase()}: $${price}`);
+            window.logger && window.logger.debug(`${asset.toUpperCase()}: $${price}`);
             return price;
         }
         
@@ -455,13 +477,17 @@ class UniversalAPI {
         const id = ids[asset];
         if (!id) throw new Error(`Unsupported metal: ${asset}`);
         
-        const apiUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`;
+        const codeMap = { gold: 'XAU', silver: 'XAG', platinum: 'XPT', palladium: 'XPD' };
+        const currencyCode = codeMap[id];
+        const apiUrl = `https://api.metalpriceapi.com/v1/latest?api_key=${this.apiKeys.metalprice}&base=USD&currencies=${currencyCode}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
         
-        const data = await this.fetchWithTimeout(apiUrl);
-        const price = data[id]?.usd;
+        const data = await this.requestWithRetry(proxyUrl);
+        const price = data.rates?.[currencyCode];
         
         if (price && price > 0) {
-            console.log(`${asset}: $${price}`);
+            // Return fetched metal price directly
+            window.logger && window.logger.debug(`${asset}: $${price}`);
             return price;
         }
         
@@ -478,13 +504,14 @@ class UniversalAPI {
         const currency = pairs[asset];
         if (!currency) throw new Error(`Unsupported forex: ${asset}`);
         
-        const apiUrl = `https://api.exchangerate-api.com/v4/latest/USD`;
+        const apiUrl = `https://api.forexrateapi.com/v1/latest?api_key=${this.apiKeys.forexrate}&base=USD&currencies=${currency}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
         
-        const data = await this.fetchWithTimeout(apiUrl);
+        const data = await this.requestWithRetry(proxyUrl);
         const rate = data.rates?.[currency];
         
         if (rate && rate > 0) {
-            console.log(`${asset}: ${rate}`);
+            window.logger && window.logger.debug(`${asset}: ${rate}`);
             return rate;
         }
         
@@ -497,7 +524,8 @@ class UniversalAPI {
             bigmac_eu: 5.15, bigmac_ca: 6.77
         };
         
-        const basePrice = realPrices[asset] || this.fallbackPrices[asset] || 5.0;
+        const basePrice = realPrices[asset];
+        if (basePrice === undefined) throw new Error(`Missing BigMac price for ${asset}`);
         const variation = (Math.random() - 0.5) * 0.02;
         const price = basePrice * (1 + variation);
         
@@ -508,7 +536,7 @@ class UniversalAPI {
 
     async fetchPrice(asset) {
         const assetInfo = this.assets[asset];
-        if (!assetInfo) return this.fallbackPrices[asset] || 0;
+        if (!assetInfo) return 0;
 
         try {
             switch (assetInfo.type) {
@@ -521,11 +549,11 @@ class UniversalAPI {
                 case 'bigmac':
                     return this.getBigMacPrice(asset);
                 default:
-                    return this.fallbackPrices[asset] || 0;
+                    return 0;
             }
         } catch (error) {
-            console.warn(`${asset} fetch failed:`, error);
-            return this.lastPrices[asset] || this.fallbackPrices[asset] || 0;
+            window.logger && window.logger.warn(`${asset} fetch failed:`, error);
+            return this.lastPrices[asset] || 0;
         }
     }
 
@@ -534,18 +562,18 @@ class UniversalAPI {
         const assets = this.userSelectedAssets;
         
         if (assets.length === 0) {
-            console.warn('No assets selected for fetching');
-            return this.fallbackPrices;
+            window.logger && window.logger.warn('No assets selected for fetching');
+            return {};
         }
         
         for (const asset of assets) {
             try {
                 const price = await this.fetchPrice(asset);
                 prices[asset] = price;
-                console.log(`Fetched ${asset}: ${price}`);
+                window.logger && window.logger.debug(`Fetched ${asset}: ${price}`);
             } catch (error) {
-                console.warn(`Failed to fetch ${asset}:`, error);
-                prices[asset] = this.lastPrices[asset] || this.fallbackPrices[asset] || 0;
+                window.logger && window.logger.warn(`Failed to fetch ${asset}:`, error);
+                prices[asset] = this.lastPrices[asset] || 0;
             }
         }
         
@@ -570,7 +598,7 @@ class UniversalAPI {
                 }));
             }
         } catch (error) {
-            console.warn('News feed failed:', error);
+            window.logger && window.logger.warn('News feed failed:', error);
         }
         
         // Fallback news
@@ -587,7 +615,7 @@ class UniversalAPI {
         try {
             localStorage.setItem('lastAssetPrices', JSON.stringify(this.lastPrices));
         } catch (error) {
-            console.warn('Failed to save prices to localStorage:', error);
+            window.logger && window.logger.warn('Failed to save prices to localStorage:', error);
         }
     }
 
@@ -596,7 +624,7 @@ class UniversalAPI {
         try {
             localStorage.setItem('userSelectedAssets', JSON.stringify(selectedAssets));
         } catch (error) {
-            console.warn('Failed to save user selection:', error);
+            window.logger && window.logger.warn('Failed to save user selection:', error);
         }
     }
 
@@ -609,7 +637,7 @@ class UniversalAPI {
         try {
             localStorage.setItem('baseCurrency', currency);
         } catch (error) {
-            console.warn('Failed to save base currency:', error);
+            window.logger && window.logger.warn('Failed to save base currency:', error);
         }
     }
 
@@ -657,7 +685,7 @@ class DataStorage {
             // Simple compression by removing unnecessary whitespace and shortening keys
             return jsonString.replace(/\s+/g, '').replace(/"timestamp"/g, '"t"').replace(/"price"/g, '"p"').replace(/"asset"/g, '"a"');
         } catch (error) {
-            console.warn('Compression failed:', error);
+            window.logger && window.logger.warn('Compression failed:', error);
             return JSON.stringify(data);
         }
     }
@@ -669,7 +697,7 @@ class DataStorage {
             const restored = compressedData.replace(/"t"/g, '"timestamp"').replace(/"p"/g, '"price"').replace(/"a"/g, '"asset"');
             return JSON.parse(restored);
         } catch (error) {
-            console.warn('Decompression failed:', error);
+            window.logger && window.logger.warn('Decompression failed:', error);
             return JSON.parse(compressedData);
         }
     }
@@ -684,7 +712,7 @@ class DataStorage {
             // Also save to a master history index
             this.updateHistoryIndex(asset);
         } catch (error) {
-            console.error('Failed to save history:', error);
+            window.logger && window.logger.error('Failed to save history:', error);
             this.clearOldHistory();
         }
     }
@@ -697,7 +725,7 @@ class DataStorage {
             
             return this.decompress(compressed);
         } catch (error) {
-            console.error('Failed to load history:', error);
+            window.logger && window.logger.error('Failed to load history:', error);
             return [];
         }
     }
@@ -711,7 +739,7 @@ class DataStorage {
                 localStorage.setItem(indexKey, JSON.stringify(index));
             }
         } catch (error) {
-            console.warn('Failed to update history index:', error);
+            window.logger && window.logger.warn('Failed to update history index:', error);
         }
     }
 
@@ -736,7 +764,7 @@ class DataStorage {
                 }
             });
         } catch (error) {
-            console.error('Failed to clear old history:', error);
+            window.logger && window.logger.error('Failed to clear old history:', error);
         }
     }
 
@@ -745,7 +773,7 @@ class DataStorage {
             const compressed = this.compress(settings);
             localStorage.setItem(this.settingsKey, compressed);
         } catch (error) {
-            console.error('Failed to save settings:', error);
+            window.logger && window.logger.error('Failed to save settings:', error);
         }
     }
 
@@ -756,7 +784,7 @@ class DataStorage {
             
             return { ...this.getDefaultSettings(), ...this.decompress(compressed) };
         } catch (error) {
-            console.error('Failed to load settings:', error);
+            window.logger && window.logger.error('Failed to load settings:', error);
             return this.getDefaultSettings();
         }
     }
@@ -793,7 +821,7 @@ class DataStorage {
             
             return JSON.stringify(data, null, 2);
         } catch (error) {
-            console.error('Failed to export data:', error);
+            window.logger && window.logger.error('Failed to export data:', error);
             return null;
         }
     }
@@ -815,7 +843,7 @@ class DataStorage {
             }
             return false;
         } catch (error) {
-            console.error('Failed to import data:', error);
+            window.logger && window.logger.error('Failed to import data:', error);
             return false;
         }
     }
@@ -854,7 +882,7 @@ class DataStorage {
             });
             return true;
         } catch (error) {
-            console.error('Failed to clear data:', error);
+            window.logger && window.logger.error('Failed to clear data:', error);
             return false;
         }
     }
@@ -1386,7 +1414,7 @@ class AlertSystem {
         notification.className = 'alert-notification';
         notification.innerHTML = `
             <div class="alert-content">
-                <strong>Price Alert</strong>
+                <strong>Hey ${localStorage.getItem('userName') || ''}!</strong>
                 <p>${alert.message}</p>
                 <small>${new Date().toLocaleTimeString()}</small>
             </div>
@@ -1439,7 +1467,7 @@ class AlertSystem {
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.3);
         } catch (error) {
-            console.warn('Could not play alert sound:', error);
+            window.logger && window.logger.warn('Could not play alert sound:', error);
         }
     }
 
@@ -1514,7 +1542,7 @@ class AlertSystem {
             
             return true;
         } catch (error) {
-            console.error('Failed to import alerts:', error);
+            window.logger && window.logger.error('Failed to import alerts:', error);
             return false;
         }
     }
@@ -1667,7 +1695,7 @@ class ThemeManager {
             }
             return false;
         } catch (error) {
-            console.error('Failed to import theme:', error);
+            window.logger && window.logger.error('Failed to import theme:', error);
             return false;
         }
     }

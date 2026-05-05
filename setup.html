@@ -64,38 +64,9 @@
                 <input type="text" id="userName" placeholder="Enter your name" required>
             </div>
 
-            <div class="selection-grid">
-                <div class="selection-category">
-                    <h3>Cryptocurrency</h3>
-                    <label><input type="checkbox" value="btc" checked> Bitcoin (BTC)</label>
-                    <label><input type="checkbox" value="eth"> Ethereum (ETH)</label>
-                    <label><input type="checkbox" value="bnb"> Binance Coin (BNB)</label>
-                    <label><input type="checkbox" value="ada"> Cardano (ADA)</label>
-                    <label><input type="checkbox" value="sol"> Solana (SOL)</label>
-                </div>
-                
-                <div class="selection-category">
-                    <h3>Precious Metals</h3>
-                    <label><input type="checkbox" value="gold" checked> Gold (XAU)</label>
-                    <label><input type="checkbox" value="silver"> Silver (XAG)</label>
-                    <label><input type="checkbox" value="platinum"> Platinum (XPT)</label>
-                    <label><input type="checkbox" value="palladium"> Palladium (XPD)</label>
-                </div>
-                
-                <div class="selection-category">
-                    <h3>Currencies</h3>
-                    <label><input type="checkbox" value="usd_eur" checked> USD to EUR</label>
-                    <label><input type="checkbox" value="usd_gbp"> USD to GBP</label>
-                    <label><input type="checkbox" value="usd_jpy"> USD to JPY</label>
-                    <label><input type="checkbox" value="usd_cad"> USD to CAD</label>
-                </div>
-                
-                <div class="selection-category">
-                    <h3>Big Mac Index</h3>
-                    <label><input type="checkbox" value="bigmac_us"> USA</label>
-                    <label><input type="checkbox" value="bigmac_uk"> United Kingdom</label>
-                    <label><input type="checkbox" value="bigmac_jp"> Japan</label>
-                </div>
+            <div class="form-group">
+                <label for="assetSearch">Search and add assets (comma‑separated, e.g., btc, gold, usd_jpy)</label>
+                <input type="text" id="assetSearch" placeholder="Enter asset codes" style="width: 100%; padding: 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 0.5rem; color: var(--text-primary);">
             </div>
 
             <button class="btn-primary" style="width: 100%;" onclick="completeSetup()">Start Tracking</button>
@@ -105,8 +76,8 @@
     <script>
         function completeSetup() {
             const userName = document.getElementById('userName').value.trim();
-            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
-            const selectedAssets = Array.from(checkboxes).map(cb => cb.value);
+            const assetInput = document.getElementById('assetSearch').value.trim();
+            const selectedAssets = assetInput ? assetInput.split(',').map(a => a.trim()).filter(a => a) : [];
             
             if (!userName) {
                 alert('Please enter your name.');
