@@ -1,213 +1,9 @@
-// ===== WEBSOCKET MANAGER CLASS =====
-class WebSocketManager {
-    constructor() {
-        this.connections = new Map();
-        this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
-        this.reconnectDelay = 1000;
-        this.isOnline = navigator.onLine;
-        this.setupNetworkListeners();
-    }
-
-    setupNetworkListeners() {
-        window.addEventListener('online', () => {
-            this.isOnline = true;
-            this.reconnectAll();
-        });
-        
-        window.addEventListener('offline', () => {
-            this.isOnline = false;
-            this.closeAll();
-        });
-    }
-
-    connect(url, options = {}) {
-        if (!this.isOnline) return null;
-        
-        try {
-            const ws = new WebSocket(url);
-            const connectionId = Date.now() + Math.random();
-            
-            ws.onopen = () => {
-                window.logger && window.logger.debug('WebSocket connected:', url);
-                this.reconnectAttempts = 0;
-                if (options.onOpen) options.onOpen();
-            };
-            
-            ws.onmessage = (event) => {
-                if (options.onMessage) {
-                    try {
-                        const data = JSON.parse(event.data);
-                        options.onMessage(data);
-                    } catch (error) {
-                        window.logger && window.logger.error('WebSocket message parse error:', error);
-                    }
-                }
-            };
-            
-            ws.onclose = () => {
-                window.logger && window.logger.debug('WebSocket closed:', url);
-                this.connections.delete(connectionId);
-                if (options.onClose) options.onClose();
-                this.attemptReconnect(url, options);
-            };
-            
-            ws.onerror = (error) => {
-                window.logger && window.logger.error('WebSocket error:', error);
-                if (options.onError) options.onError(error);
-            };
-            
-            this.connections.set(connectionId, { ws, url, options });
-            return connectionId;
-        } catch (error) {
-            window.logger && window.logger.error('WebSocket connection failed:', error);
-            return null;
-        }
-    }
-
-    attemptReconnect(url, options) {
-        if (!this.isOnline || this.reconnectAttempts >= this.maxReconnectAttempts) {
-            return;
-        }
-        
-        this.reconnectAttempts++;
-        const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-        
-        setTimeout(() => {
-            window.logger && window.logger.debug(`Reconnecting WebSocket (attempt ${this.reconnectAttempts})...`);
-            this.connect(url, options);
-        }, delay);
-    }
-
-    reconnectAll() {
-        this.connections.forEach(({ url, options }) => {
-            this.connect(url, options);
-        });
-    }
-
-    closeAll() {
-        this.connections.forEach(({ ws }) => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.close();
-            }
-        });
-        this.connections.clear();
-    }
-
-    send(connectionId, data) {
-        const connection = this.connections.get(connectionId);
-        if (connection && connection.ws.readyState === WebSocket.OPEN) {
-            connection.ws.send(JSON.stringify(data));
-            return true;
-        }
-        return false;
-    }
-}
-
-// ===== PERFORMANCE MONITOR CLASS =====
-class PerformanceMonitor {
-    constructor() {
-        this.metrics = {
-            apiCalls: 0,
-            successfulCalls: 0,
-            failedCalls: 0,
-            totalResponseTime: 0,
-            averageResponseTime: 0,
-            memoryUsage: 0,
-            cacheHits: 0,
-            cacheMisses: 0
-        };
-        this.startTime = Date.now();
-        this.observers = [];
-        this.setupPerformanceObserver();
-    }
-
-    setupPerformanceObserver() {
-        if ('PerformanceObserver' in window) {
-            const observer = new PerformanceObserver((list) => {
-                list.getEntries().forEach((entry) => {
-                    if (entry.entryType === 'navigation') {
-                        this.metrics.loadTime = entry.loadEventEnd - entry.loadEventStart;
-                    }
-                });
-            });
-            observer.observe({ entryTypes: ['navigation', 'resource'] });
-        }
-    }
-
-    recordApiCall(responseTime, success = true) {
-        this.metrics.apiCalls++;
-        this.metrics.totalResponseTime += responseTime;
-        this.metrics.averageResponseTime = this.metrics.totalResponseTime / this.metrics.apiCalls;
-        
-        if (success) {
-            this.metrics.successfulCalls++;
-        } else {
-            this.metrics.failedCalls++;
-        }
-        
-        this.notifyObservers();
-    }
-
-    recordCacheHit(hit = true) {
-        if (hit) {
-            this.metrics.cacheHits++;
-        } else {
-            this.metrics.cacheMisses++;
-        }
-    }
-
-    getMemoryUsage() {
-        if ('memory' in performance) {
-            this.metrics.memoryUsage = {
-                used: Math.round(performance.memory.usedJSHeapSize / 1048576),
-                total: Math.round(performance.memory.totalJSHeapSize / 1048576),
-                limit: Math.round(performance.memory.jsHeapSizeLimit / 1048576)
-            };
-        }
-        return this.metrics.memoryUsage;
-    }
-
-    getMetrics() {
-        this.getMemoryUsage();
-        return {
-            ...this.metrics,
-            uptime: Date.now() - this.startTime,
-            successRate: this.metrics.apiCalls > 0 ? (this.metrics.successfulCalls / this.metrics.apiCalls) * 100 : 0,
-            cacheHitRate: (this.metrics.cacheHits + this.metrics.cacheMisses) > 0 ? 
-                (this.metrics.cacheHits / (this.metrics.cacheHits + this.metrics.cacheMisses)) * 100 : 0
-        };
-    }
-
-    addObserver(callback) {
-        this.observers.push(callback);
-    }
-
-    notifyObservers() {
-        this.observers.forEach(callback => callback(this.getMetrics()));
-    }
-
-    reset() {
-        this.metrics = {
-            apiCalls: 0,
-            successfulCalls: 0,
-            failedCalls: 0,
-            totalResponseTime: 0,
-            averageResponseTime: 0,
-            memoryUsage: 0,
-            cacheHits: 0,
-            cacheMisses: 0
-        };
-        this.startTime = Date.now();
-    }
-}
-
 // ===== UNIVERSAL API CLASS =====
 class UniversalAPI {
     constructor() {
         this.baseCurrency = localStorage.getItem('baseCurrency') || 'USD';
-        this.wsManager = new WebSocketManager();
-        this.performanceMonitor = new PerformanceMonitor();
+        this.displayCurrency = localStorage.getItem('displayCurrency') || 'USD';
+        this.forexRates = {};
         
         this.assets = {
             // Cryptocurrencies
@@ -353,27 +149,13 @@ class UniversalAPI {
             
             if (response.ok) {
                 this.apiCallCount++;
-                this.performanceMonitor.recordApiCall(responseTime, true);
                 this.resetCircuitBreaker();
-                
-                const data = await response.json();
-                
-                // Cache successful response in service worker
-                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                    navigator.serviceWorker.controller.postMessage({
-                        type: 'CACHE_PRICES',
-                        data: data
-                    });
-                }
-                
-                return data;
+                return await response.json();
             } else {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
         } catch (error) {
             clearTimeout(timeoutId);
-            const responseTime = Date.now() - startTime;
-            this.performanceMonitor.recordApiCall(responseTime, false);
             this.recordCircuitBreakerFailure();
             throw error;
         }
@@ -519,18 +301,12 @@ class UniversalAPI {
     }
 
     getBigMacPrice(asset) {
-        const realPrices = {
-            bigmac_us: 5.69, bigmac_uk: 4.89, bigmac_jp: 450, 
+        const prices = {
+            bigmac_us: 5.69, bigmac_uk: 4.89, bigmac_jp: 450,
             bigmac_eu: 5.15, bigmac_ca: 6.77
         };
-        
-        const basePrice = realPrices[asset];
-        if (basePrice === undefined) throw new Error(`Missing BigMac price for ${asset}`);
-        const variation = (Math.random() - 0.5) * 0.02;
-        const price = basePrice * (1 + variation);
-        
-        this.lastPrices[asset] = price;
-        this.saveLastPrices();
+        const price = prices[asset];
+        if (price === undefined) throw new Error(`Missing BigMac price for ${asset}`);
         return price;
     }
 
@@ -645,6 +421,37 @@ class UniversalAPI {
         return this.baseCurrency;
     }
 
+    setDisplayCurrency(currency) {
+        this.displayCurrency = currency;
+        localStorage.setItem('displayCurrency', currency);
+    }
+
+    getDisplayCurrency() {
+        return this.displayCurrency;
+    }
+
+    async fetchForexRates() {
+        const supported = ['EUR','GBP','JPY','CAD','AUD','CHF','CNY','INR','AED','BHD','KRW','BRL','MXN','RUB','TRY','ZAR','NOK','SEK'];
+        try {
+            const apiUrl = `https://api.forexrateapi.com/v1/latest?api_key=${this.apiKeys.forexrate}&base=USD&currencies=${supported.join(',')}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
+            const data = await this.requestWithRetry(proxyUrl);
+            if (data.rates) {
+                this.forexRates = data.rates;
+                this.forexRates['USD'] = 1;
+            }
+        } catch (error) {
+            window.logger && window.logger.warn('Failed to fetch forex rates for conversion:', error);
+        }
+    }
+
+    convertPrice(priceUSD, targetCurrency) {
+        if (!targetCurrency || targetCurrency === 'USD') return priceUSD;
+        const rate = this.forexRates[targetCurrency];
+        if (!rate) return priceUSD;
+        return priceUSD * rate;
+    }
+
     getAssetInfo(asset) {
         return this.assets[asset];
     }
@@ -674,42 +481,13 @@ class DataStorage {
         this.historyKey = 'priceHistory';
         this.settingsKey = 'appSettings';
         this.maxHistoryItems = 10000;
-        this.compressionEnabled = true;
-    }
-
-    compress(data) {
-        if (!this.compressionEnabled) return JSON.stringify(data);
-        
-        try {
-            const jsonString = JSON.stringify(data);
-            // Simple compression by removing unnecessary whitespace and shortening keys
-            return jsonString.replace(/\s+/g, '').replace(/"timestamp"/g, '"t"').replace(/"price"/g, '"p"').replace(/"asset"/g, '"a"');
-        } catch (error) {
-            window.logger && window.logger.warn('Compression failed:', error);
-            return JSON.stringify(data);
-        }
-    }
-
-    decompress(compressedData) {
-        if (!this.compressionEnabled) return JSON.parse(compressedData);
-        
-        try {
-            const restored = compressedData.replace(/"t"/g, '"timestamp"').replace(/"p"/g, '"price"').replace(/"a"/g, '"asset"');
-            return JSON.parse(restored);
-        } catch (error) {
-            window.logger && window.logger.warn('Decompression failed:', error);
-            return JSON.parse(compressedData);
-        }
     }
 
     saveHistory(history, asset = 'default') {
         try {
             const key = `${this.historyKey}_${asset}`;
             const limitedHistory = history.slice(0, this.maxHistoryItems);
-            const compressed = this.compress(limitedHistory);
-            localStorage.setItem(key, compressed);
-            
-            // Also save to a master history index
+            localStorage.setItem(key, JSON.stringify(limitedHistory));
             this.updateHistoryIndex(asset);
         } catch (error) {
             window.logger && window.logger.error('Failed to save history:', error);
@@ -720,10 +498,9 @@ class DataStorage {
     loadHistory(asset = 'default') {
         try {
             const key = `${this.historyKey}_${asset}`;
-            const compressed = localStorage.getItem(key);
-            if (!compressed) return [];
-            
-            return this.decompress(compressed);
+            const raw = localStorage.getItem(key);
+            if (!raw) return [];
+            return JSON.parse(raw);
         } catch (error) {
             window.logger && window.logger.error('Failed to load history:', error);
             return [];
@@ -770,8 +547,7 @@ class DataStorage {
 
     saveSettings(settings) {
         try {
-            const compressed = this.compress(settings);
-            localStorage.setItem(this.settingsKey, compressed);
+            localStorage.setItem(this.settingsKey, JSON.stringify(settings));
         } catch (error) {
             window.logger && window.logger.error('Failed to save settings:', error);
         }
@@ -779,10 +555,9 @@ class DataStorage {
 
     loadSettings() {
         try {
-            const compressed = localStorage.getItem(this.settingsKey);
-            if (!compressed) return this.getDefaultSettings();
-            
-            return { ...this.getDefaultSettings(), ...this.decompress(compressed) };
+            const raw = localStorage.getItem(this.settingsKey);
+            if (!raw) return this.getDefaultSettings();
+            return { ...this.getDefaultSettings(), ...JSON.parse(raw) };
         } catch (error) {
             window.logger && window.logger.error('Failed to load settings:', error);
             return this.getDefaultSettings();

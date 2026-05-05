@@ -3,6 +3,7 @@ class PriceTracker {
         this.currentAsset = 'btc';
         this.currentCategory = 'crypto';
         this.allPrices = {};
+        this.previousPrices = {};
         this.priceHistory = {};
         this.chart = null;
         this.api = new UniversalAPI();
@@ -11,6 +12,7 @@ class PriceTracker {
         this.alertSystem = new AlertSystem();
         this.themeManager = new ThemeManager();
         this.settings = this.storage.loadSettings();
+        this.pinnedAssets = JSON.parse(localStorage.getItem('pinnedAssets') || '[]');
         this.refreshInterval = null;
         this.isLoading = false;
         this.init();
@@ -42,7 +44,8 @@ class PriceTracker {
             }
         });
         
-        setTimeout(() => {
+        setTimeout(async () => {
+            await this.api.fetchForexRates();
             this.fetchAllPrices();
             this.startAutoRefresh();
         }, 100);
@@ -137,7 +140,6 @@ class PriceTracker {
         try {
             const userAssets = this.api.getUserSelectedAssets();
             
-            // Parallel fetching for better performance
             const pricePromises = userAssets.map(async asset => {
                 try {
                     const price = await this.api.fetchPrice(asset);
@@ -149,6 +151,7 @@ class PriceTracker {
             
             const results = await Promise.all(pricePromises);
             
+            this.previousPrices = { ...this.allPrices };
             const newPrices = {};
             results.forEach(({ asset, price }) => {
                 newPrices[asset] = price;
@@ -159,6 +162,7 @@ class PriceTracker {
             this.api.saveLastPrices();
             
             this.updatePriceHistory();
+            this.alertSystem.checkAlerts(this.allPrices, this.previousPrices);
             this.updateDisplay();
             this.updateAssetsGrid();
             this.updateChart();
@@ -189,18 +193,12 @@ class PriceTracker {
                 time: timestamp,
                 price: this.allPrices[asset]
             });
-            // Increased from 20 to 100 for better historical data
             if (this.priceHistory[asset].length > 100) {
                 this.priceHistory[asset] = this.priceHistory[asset].slice(0, 100);
             }
-            
-            // Save history to storage periodically
             if (this.priceHistory[asset].length % 10 === 0) {
                 this.storage.saveHistory(this.priceHistory[asset], asset);
             }
-            
-            // Check price alerts
-            this.alertSystem.checkAlerts(asset, this.allPrices[asset]);
         });
     }
 
@@ -380,17 +378,40 @@ class PriceTracker {
         
         grid.innerHTML = '';
         const userAssets = this.api.getUserSelectedAssets();
+        const sorted = [
+            ...userAssets.filter(a => this.pinnedAssets.includes(a)),
+            ...userAssets.filter(a => !this.pinnedAssets.includes(a))
+        ];
         
-        userAssets.forEach(asset => {
+        sorted.forEach(asset => {
             const info = this.api.getAssetInfo(asset);
             if (!info) return;
             
             const price = this.allPrices[asset] || 0;
             const change = this.calculateChange(asset);
+            const isPinned = this.pinnedAssets.includes(asset);
+            const history = this.priceHistory[asset];
+            const changeLabel = history && history.length >= 2 ? '24h' : 'chg';
             
             const card = document.createElement('div');
             card.className = `asset-card ${asset === this.currentAsset ? 'selected' : ''}`;
-            card.onclick = () => {
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                    <div style="font-weight:600;">${info.name}</div>
+                    <button class="pin-btn" title="${isPinned ? 'Unpin' : 'Pin'}" style="background:none;border:none;cursor:pointer;font-size:1rem;opacity:${isPinned ? '1' : '0.35'};">${isPinned ? '📌' : '📌'}</button>
+                </div>
+                <div style="font-size:1.5rem;font-weight:700;margin-bottom:0.25rem;">${this.formatPrice(price, asset)}</div>
+                <div class="${change >= 0 ? 'positive' : 'negative'}" style="font-weight:500;">
+                    ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}% <span style="font-size:0.75rem;opacity:0.6;">(${changeLabel})</span>
+                </div>
+            `;
+
+            card.querySelector('.pin-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.togglePin(asset);
+            });
+
+            card.addEventListener('click', () => {
                 if (info.type !== this.currentCategory) {
                     this.currentCategory = info.type;
                     document.querySelectorAll('.category-tab').forEach(tab => {
@@ -399,15 +420,7 @@ class PriceTracker {
                     this.setupAssetTabs();
                 }
                 this.switchAsset(asset);
-            };
-            
-            card.innerHTML = `
-                <div style="font-weight: 600; margin-bottom: 0.5rem;">${info.name}</div>
-                <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">${this.formatPrice(price, asset)}</div>
-                <div class="${change >= 0 ? 'positive' : 'negative'}" style="font-weight: 500;">
-                    ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}%
-                </div>
-            `;
+            });
             
             grid.appendChild(card);
         });
@@ -439,28 +452,41 @@ class PriceTracker {
     calculateChange(asset) {
         const history = this.priceHistory[asset];
         if (!history || history.length < 2) return 0;
-        
-        const current = history[0].price;
-        const previous = history[1].price;
-        if (previous === 0) return 0;
-        return ((current - previous) / previous) * 100;
+
+        const current = history[0];
+        const cutoff = current.time - 24 * 60 * 60 * 1000;
+        // Find the oldest entry within the last 24h, or fall back to the oldest available
+        const baseline = history.find(h => h.time <= cutoff) || history[history.length - 1];
+
+        if (!baseline || baseline.price === 0) return 0;
+        return ((current.price - baseline.price) / baseline.price) * 100;
     }
 
-    formatPrice(price, asset) {
-        if (!price || isNaN(price)) return 'N/A';
-        
+    formatPrice(priceUSD, asset) {
+        if (!priceUSD || isNaN(priceUSD)) return 'N/A';
+
         const info = this.api.getAssetInfo(asset);
+        // Big Mac prices have their own native currencies — don't convert
         if (info?.type === 'bigmac') {
-            if (asset.includes('jp')) return `¥${price.toFixed(0)}`;
-            if (asset.includes('eu')) return `€${price.toFixed(2)}`;
-            if (asset.includes('uk')) return `£${price.toFixed(2)}`;
-            return `$${price.toFixed(2)}`;
+            if (asset.includes('jp')) return `¥${priceUSD.toFixed(0)}`;
+            if (asset.includes('eu')) return `€${priceUSD.toFixed(2)}`;
+            if (asset.includes('uk')) return `£${priceUSD.toFixed(2)}`;
+            return `$${priceUSD.toFixed(2)}`;
         }
-        
-        if (price < 1) return `$${price.toFixed(6)}`;
-        if (price < 100) return `$${price.toFixed(4)}`;
-        if (price < 1000) return `$${price.toFixed(2)}`;
-        return `$${price.toLocaleString()}`;
+        // Forex assets are already a rate, not a USD price — don't double-convert
+        if (info?.type === 'currency') {
+            return priceUSD.toFixed(4);
+        }
+
+        const displayCurrency = this.api.getDisplayCurrency();
+        const price = this.api.convertPrice(priceUSD, displayCurrency);
+        const symbols = { USD: '$', EUR: '€', GBP: '£', JPY: '¥', CAD: 'CA$', AUD: 'A$', CHF: 'Fr', CNY: '¥', INR: '₹', AED: 'د.إ', BHD: 'BD', KRW: '₩', BRL: 'R$', MXN: 'MX$', RUB: '₽', TRY: '₺', ZAR: 'R', NOK: 'kr', SEK: 'kr' };
+        const sym = symbols[displayCurrency] || displayCurrency + ' ';
+
+        if (price < 1) return `${sym}${price.toFixed(6)}`;
+        if (price < 100) return `${sym}${price.toFixed(4)}`;
+        if (price < 1000) return `${sym}${price.toFixed(2)}`;
+        return `${sym}${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
     }
 
     startAutoRefresh() {
@@ -506,16 +532,29 @@ class PriceTracker {
         });
     }
 
+    togglePin(asset) {
+        const idx = this.pinnedAssets.indexOf(asset);
+        if (idx === -1) {
+            this.pinnedAssets.push(asset);
+        } else {
+            this.pinnedAssets.splice(idx, 1);
+        }
+        localStorage.setItem('pinnedAssets', JSON.stringify(this.pinnedAssets));
+        this.updateAssetsGrid();
+    }
+
     setupSettings() {
         const autoRefreshEl = document.getElementById('autoRefresh');
         const refreshIntervalEl = document.getElementById('refreshInterval');
         const soundEnabledEl = document.getElementById('soundEnabled');
         const notificationsEl = document.getElementById('notificationsEnabled');
+        const currencyEl = document.getElementById('displayCurrency');
         
         if (autoRefreshEl) autoRefreshEl.checked = this.settings.autoRefresh;
         if (refreshIntervalEl) refreshIntervalEl.value = this.settings.refreshInterval / 1000;
         if (soundEnabledEl) soundEnabledEl.checked = this.settings.soundEnabled;
         if (notificationsEl) notificationsEl.checked = this.settings.notificationsEnabled;
+        if (currencyEl) currencyEl.value = this.api.getDisplayCurrency();
     }
 }
 
@@ -565,6 +604,7 @@ function saveSettings() {
     const refreshInterval = (document.getElementById('refreshInterval')?.value ?? 300) * 1000;
     const soundEnabled = document.getElementById('soundEnabled')?.checked ?? true;
     const notificationsEnabled = document.getElementById('notificationsEnabled')?.checked ?? true;
+    const displayCurrency = document.getElementById('displayCurrency')?.value || 'USD';
     
     window.tracker.settings = {
         ...window.tracker.settings,
@@ -574,12 +614,17 @@ function saveSettings() {
         notificationsEnabled
     };
     
+    window.tracker.api.setDisplayCurrency(displayCurrency);
     window.tracker.storage.saveSettings(window.tracker.settings);
     window.tracker.startAutoRefresh();
     
     if (notificationsEnabled && Notification.permission === 'default') {
         Notification.requestPermission();
     }
+    
+    // Re-render prices in new currency
+    window.tracker.updateDisplay();
+    window.tracker.updateAssetsGrid();
     
     alert('Settings saved!');
 }

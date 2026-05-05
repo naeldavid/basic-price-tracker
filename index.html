@@ -72,6 +72,33 @@
                 </div>
                 
                 <div class="setting-group">
+                    <h4>Display Currency</h4>
+                    <label>
+                        Currency:
+                        <select id="displayCurrency" style="width:100%;padding:0.5rem;margin-top:0.5rem;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-primary);border-radius:0.25rem;">
+                            <option value="USD">USD – US Dollar</option>
+                            <option value="EUR">EUR – Euro</option>
+                            <option value="GBP">GBP – British Pound</option>
+                            <option value="JPY">JPY – Japanese Yen</option>
+                            <option value="CAD">CAD – Canadian Dollar</option>
+                            <option value="AUD">AUD – Australian Dollar</option>
+                            <option value="CHF">CHF – Swiss Franc</option>
+                            <option value="CNY">CNY – Chinese Yuan</option>
+                            <option value="INR">INR – Indian Rupee</option>
+                            <option value="AED">AED – UAE Dirham</option>
+                            <option value="BHD">BHD – Bahraini Dinar</option>
+                            <option value="KRW">KRW – Korean Won</option>
+                            <option value="BRL">BRL – Brazilian Real</option>
+                            <option value="MXN">MXN – Mexican Peso</option>
+                            <option value="TRY">TRY – Turkish Lira</option>
+                            <option value="ZAR">ZAR – South African Rand</option>
+                            <option value="NOK">NOK – Norwegian Krone</option>
+                            <option value="SEK">SEK – Swedish Krona</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="setting-group">
                     <h4>Refresh Settings</h4>
                     <label>
                         <input type="checkbox" id="autoRefresh" checked>
@@ -136,11 +163,17 @@
         if (setupComplete !== 'true' || !userName || !selectedAssets) {
             window.location.href = 'setup.html';
         } else {
-            // Load core scripts synchronously after validation
+            const greetingEl = document.getElementById('greeting');
+            if (greetingEl && userName) {
+                const hour = new Date().getHours();
+                const period = hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
+                greetingEl.textContent = `Good ${period}, ${userName}`;
+            }
+
             const load = src => {
                 const s = document.createElement('script');
                 s.src = src;
-                s.async = false; // ensure order
+                s.async = false;
                 document.head.appendChild(s);
             };
             load('static/logger.js');
@@ -148,25 +181,5 @@
             load('static/app.js');
         }
     </script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    let userName = localStorage.getItem('userName');
-    if (!userName) {
-        userName = prompt('Enter your name:');
-        if (userName) {
-            localStorage.setItem('userName', userName);
-            // Redirect to asset selection after setting name
-            window.location.href = 'asset-select.html';
-            return;
-        }
-    }
-    const greetingEl = document.getElementById('greeting');
-    if (greetingEl && userName) {
-        const hour = new Date().getHours();
-        const period = hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
-        greetingEl.textContent = `Good ${period}, ${userName}`;
-    }
-});
-</script>
 </body>
 </html>
