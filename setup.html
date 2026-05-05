@@ -65,35 +65,121 @@
             </div>
 
             <div class="form-group">
-                <label for="assetSearch">Search and add assets (comma‑separated, e.g., btc, gold, usd_jpy)</label>
-                <input type="text" id="assetSearch" placeholder="Enter asset codes" style="width: 100%; padding: 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 0.5rem; color: var(--text-primary);">
+                <label>Assets</label>
+                <div style="position:relative;">
+                    <input type="text" id="assetSearch" placeholder="Search assets..." autocomplete="off"
+                        style="width:100%;padding:0.75rem;background:var(--bg-primary);border:1px solid var(--border);border-radius:0.5rem;color:var(--text-primary);font-size:1rem;">
+                    <ul id="suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;margin:0;padding:0;list-style:none;background:var(--bg-secondary);border:1px solid var(--border);border-top:none;border-radius:0 0 0.5rem 0.5rem;max-height:220px;overflow-y:auto;z-index:100;"></ul>
+                </div>
+                <div id="selectedTags" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.75rem;"></div>
             </div>
 
-            <button class="btn-primary" style="width: 100%;" onclick="completeSetup()">Start Tracking</button>
+            <button class="btn-primary" style="width:100%;" onclick="completeSetup()">Start Tracking</button>
         </div>
     </div>
 
     <script>
+        const ALL_ASSETS = [
+            { key: 'btc',       label: 'Bitcoin',                   category: 'Crypto' },
+            { key: 'eth',       label: 'Ethereum',                  category: 'Crypto' },
+            { key: 'bnb',       label: 'Binance Coin',              category: 'Crypto' },
+            { key: 'ada',       label: 'Cardano',                   category: 'Crypto' },
+            { key: 'sol',       label: 'Solana',                    category: 'Crypto' },
+            { key: 'xrp',       label: 'Ripple',                    category: 'Crypto' },
+            { key: 'dot',       label: 'Polkadot',                  category: 'Crypto' },
+            { key: 'doge',      label: 'Dogecoin',                  category: 'Crypto' },
+            { key: 'avax',      label: 'Avalanche',                 category: 'Crypto' },
+            { key: 'matic',     label: 'Polygon',                   category: 'Crypto' },
+            { key: 'gold',      label: 'Gold',                      category: 'Metal' },
+            { key: 'silver',    label: 'Silver',                    category: 'Metal' },
+            { key: 'platinum',  label: 'Platinum',                  category: 'Metal' },
+            { key: 'palladium', label: 'Palladium',                 category: 'Metal' },
+            { key: 'usd_eur',   label: 'USD / Euro',                category: 'Currency' },
+            { key: 'usd_gbp',   label: 'USD / British Pound',       category: 'Currency' },
+            { key: 'usd_jpy',   label: 'USD / Japanese Yen',        category: 'Currency' },
+            { key: 'usd_cad',   label: 'USD / Canadian Dollar',     category: 'Currency' },
+            { key: 'usd_aud',   label: 'USD / Australian Dollar',   category: 'Currency' },
+            { key: 'usd_chf',   label: 'USD / Swiss Franc',         category: 'Currency' },
+            { key: 'usd_cny',   label: 'USD / Chinese Yuan',        category: 'Currency' },
+            { key: 'usd_inr',   label: 'USD / Indian Rupee',        category: 'Currency' },
+            { key: 'usd_aed',   label: 'USD / UAE Dirham',          category: 'Currency' },
+            { key: 'usd_bhd',   label: 'USD / Bahraini Dinar',      category: 'Currency' },
+            { key: 'usd_krw',   label: 'USD / Korean Won',          category: 'Currency' },
+            { key: 'usd_brl',   label: 'USD / Brazilian Real',      category: 'Currency' },
+            { key: 'usd_mxn',   label: 'USD / Mexican Peso',        category: 'Currency' },
+            { key: 'usd_rub',   label: 'USD / Russian Ruble',       category: 'Currency' },
+            { key: 'usd_try',   label: 'USD / Turkish Lira',        category: 'Currency' },
+            { key: 'usd_zar',   label: 'USD / South African Rand',  category: 'Currency' },
+            { key: 'usd_nok',   label: 'USD / Norwegian Krone',     category: 'Currency' },
+            { key: 'usd_sek',   label: 'USD / Swedish Krona',       category: 'Currency' },
+            { key: 'bigmac_us', label: 'Big Mac — USA',              category: 'Big Mac' },
+            { key: 'bigmac_uk', label: 'Big Mac — UK',               category: 'Big Mac' },
+            { key: 'bigmac_jp', label: 'Big Mac — Japan',            category: 'Big Mac' },
+            { key: 'bigmac_eu', label: 'Big Mac — EU',               category: 'Big Mac' },
+            { key: 'bigmac_ca', label: 'Big Mac — Canada',           category: 'Big Mac' },
+        ];
+
+        let selected = [];
+        const searchEl   = document.getElementById('assetSearch');
+        const suggestEl  = document.getElementById('suggestions');
+        const tagsEl     = document.getElementById('selectedTags');
+
+        function renderSuggestions(query) {
+            const q = query.toLowerCase();
+            const matches = ALL_ASSETS.filter(a =>
+                !selected.includes(a.key) &&
+                (a.key.includes(q) || a.label.toLowerCase().includes(q) || a.category.toLowerCase().includes(q))
+            );
+            suggestEl.innerHTML = '';
+            if (!q || matches.length === 0) { suggestEl.style.display = 'none'; return; }
+            matches.forEach(a => {
+                const li = document.createElement('li');
+                li.style.cssText = 'padding:0.6rem 0.75rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;';
+                li.innerHTML = `<span>${a.label}</span><span style="font-size:0.75rem;color:var(--text-secondary);">${a.category}</span>`;
+                li.addEventListener('mousedown', e => { e.preventDefault(); addAsset(a); });
+                li.addEventListener('mouseover', () => li.style.background = 'var(--bg-tertiary)');
+                li.addEventListener('mouseout',  () => li.style.background = '');
+                suggestEl.appendChild(li);
+            });
+            suggestEl.style.display = 'block';
+        }
+
+        function addAsset(a) {
+            if (selected.includes(a.key)) return;
+            selected.push(a.key);
+            searchEl.value = '';
+            suggestEl.style.display = 'none';
+            renderTags();
+        }
+
+        function removeAsset(key) {
+            selected = selected.filter(k => k !== key);
+            renderTags();
+        }
+
+        function renderTags() {
+            tagsEl.innerHTML = '';
+            selected.forEach(key => {
+                const asset = ALL_ASSETS.find(a => a.key === key);
+                const tag = document.createElement('span');
+                tag.style.cssText = 'display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.6rem;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:0.3rem;font-size:0.85rem;';
+                tag.innerHTML = `${asset.label} <button onclick="removeAsset('${key}')" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:1rem;line-height:1;padding:0;">&times;</button>`;
+                tagsEl.appendChild(tag);
+            });
+        }
+
+        searchEl.addEventListener('input',  e => renderSuggestions(e.target.value.trim()));
+        searchEl.addEventListener('focus',  e => { if (e.target.value.trim()) renderSuggestions(e.target.value.trim()); });
+        searchEl.addEventListener('blur',   ()  => setTimeout(() => { suggestEl.style.display = 'none'; }, 150));
+
         function completeSetup() {
             const userName = document.getElementById('userName').value.trim();
-            const assetInput = document.getElementById('assetSearch').value.trim();
-            const selectedAssets = assetInput ? assetInput.split(',').map(a => a.trim()).filter(a => a) : [];
-            
-            if (!userName) {
-                alert('Please enter your name.');
-                return;
-            }
-            
-            if (selectedAssets.length === 0) {
-                alert('Please select at least one asset.');
-                return;
-            }
-            
+            if (!userName) { alert('Please enter your name.'); return; }
+            if (selected.length === 0) { alert('Please select at least one asset.'); return; }
             const params = new URLSearchParams();
             params.set('user', encodeURIComponent(userName));
-            params.set('assets', encodeURIComponent(JSON.stringify(selectedAssets)));
+            params.set('assets', encodeURIComponent(JSON.stringify(selected)));
             params.set('setup', 'true');
-            
             window.location.href = 'index.html?' + params.toString();
         }
     </script>

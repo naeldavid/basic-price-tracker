@@ -55,19 +55,18 @@ class UniversalAPI {
         };
         
         this.apiKeys = {
-            coingecko: 'CG-Ux17qXjkLmH5bECLpn3qxFMp',
             metalprice: '16b5a1613fae4f9c92989092b4bb75e7',
             forexrate: '7bb89b804d720ea84d06b43ec832bd77'
         };
         this.fallbackPrices = {
-            // Crypto
-            btc: 43000, eth: 2600, bnb: 240, ada: 0.38, sol: 60, xrp: 0.52, dot: 5.2, doge: 0.08, avax: 12, matic: 0.75,
-            // Metals
-            gold: 4859.85, silver: 24.5, platinum: 950, palladium: 1200,
+            // Crypto (mid-2025 approximate)
+            btc: 103000, eth: 2500, bnb: 640, ada: 0.77, sol: 170, xrp: 2.35, dot: 4.5, doge: 0.22, avax: 23, matic: 0.25,
+            // Metals — USD per troy oz
+            gold: 3300, silver: 33, platinum: 990, palladium: 980,
             // Major Currencies
-            usd_eur: 0.92, usd_gbp: 0.79, usd_jpy: 150, usd_cad: 1.35, usd_aud: 1.52, usd_chf: 0.88, usd_cny: 7.25, usd_inr: 83.2, usd_aed: 3.67, usd_bhd: 0.38,
+            usd_eur: 0.88, usd_gbp: 0.75, usd_jpy: 145, usd_cad: 1.36, usd_aud: 1.55, usd_chf: 0.89, usd_cny: 7.27, usd_inr: 84.5, usd_aed: 3.67, usd_bhd: 0.376,
             // World Currencies
-            usd_krw: 1320, usd_brl: 5.1, usd_mxn: 17.8, usd_rub: 92, usd_try: 29.5, usd_zar: 18.7, usd_nok: 10.8, usd_sek: 10.9,
+            usd_krw: 1380, usd_brl: 5.7, usd_mxn: 19.5, usd_rub: 88, usd_try: 38, usd_zar: 18.5, usd_nok: 10.5, usd_sek: 10.3,
             // Big Mac
             bigmac_us: 5.69, bigmac_uk: 4.89, bigmac_jp: 450, bigmac_eu: 5.15, bigmac_ca: 6.77
         };
@@ -228,51 +227,40 @@ class UniversalAPI {
     }
 
     async fetchCryptoPrice(asset = 'btc') {
-        const symbols = { 
-            btc: 'bitcoin', eth: 'ethereum', bnb: 'binancecoin', ada: 'cardano', 
-            sol: 'solana', xrp: 'ripple', dot: 'polkadot', doge: 'dogecoin', 
-            avax: 'avalanche-2', matic: 'matic-network'
+        const symbols = {
+            btc: 'BTCUSDT', eth: 'ETHUSDT', bnb: 'BNBUSDT', ada: 'ADAUSDT',
+            sol: 'SOLUSDT', xrp: 'XRPUSDT', dot: 'DOTUSDT', doge: 'DOGEUSDT',
+            avax: 'AVAXUSDT', matic: 'MATICUSDT'
         };
         const symbol = symbols[asset];
-        
         if (!symbol) throw new Error(`Unsupported crypto: ${asset}`);
-        
-        const apiUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${symbol}&vs_currencies=usd&x_cg_demo_api_key=${this.apiKeys.coingecko}`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-        
-        const data = await this.requestWithRetry(proxyUrl);
-        const price = data[symbol]?.usd;
-        
-        if (price && price > 0) {
+
+        const data = await this.requestWithRetry(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+        const price = parseFloat(data.price);
+        if (price > 0) {
             window.logger && window.logger.debug(`${asset.toUpperCase()}: $${price}`);
             return price;
         }
-        
         throw new Error(`Failed to fetch ${asset} price`);
     }
 
     async fetchMetalPrice(asset) {
-        const ids = {
-            gold: 'gold', silver: 'silver', platinum: 'platinum', palladium: 'palladium'
-        };
-        
-        const id = ids[asset];
-        if (!id) throw new Error(`Unsupported metal: ${asset}`);
-        
         const codeMap = { gold: 'XAU', silver: 'XAG', platinum: 'XPT', palladium: 'XPD' };
-        const currencyCode = codeMap[id];
+        const currencyCode = codeMap[asset];
+        if (!currencyCode) throw new Error(`Unsupported metal: ${asset}`);
+
         const apiUrl = `https://api.metalpriceapi.com/v1/latest?api_key=${this.apiKeys.metalprice}&base=USD&currencies=${currencyCode}`;
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-        
+
         const data = await this.requestWithRetry(proxyUrl);
-        const price = data.rates?.[currencyCode];
-        
-        if (price && price > 0) {
-            // Return fetched metal price directly
+        const rate = data.rates?.[currencyCode];
+
+        // MetalPriceAPI returns units-of-metal per 1 USD, so invert to get USD per unit
+        if (rate && rate > 0) {
+            const price = 1 / rate;
             window.logger && window.logger.debug(`${asset}: $${price}`);
             return price;
         }
-        
         throw new Error(`Failed to fetch ${asset} price`);
     }
 
@@ -280,23 +268,22 @@ class UniversalAPI {
         const pairs = {
             usd_eur: 'EUR', usd_gbp: 'GBP', usd_jpy: 'JPY', usd_cad: 'CAD',
             usd_aud: 'AUD', usd_chf: 'CHF', usd_cny: 'CNY', usd_inr: 'INR',
-            usd_zar: 'ZAR', usd_aed: 'AED', usd_bhd: 'BHD'
+            usd_aed: 'AED', usd_bhd: 'BHD', usd_krw: 'KRW', usd_brl: 'BRL',
+            usd_mxn: 'MXN', usd_rub: 'RUB', usd_try: 'TRY', usd_zar: 'ZAR',
+            usd_nok: 'NOK', usd_sek: 'SEK'
         };
-        
         const currency = pairs[asset];
         if (!currency) throw new Error(`Unsupported forex: ${asset}`);
-        
+
         const apiUrl = `https://api.forexrateapi.com/v1/latest?api_key=${this.apiKeys.forexrate}&base=USD&currencies=${currency}`;
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-        
+
         const data = await this.requestWithRetry(proxyUrl);
         const rate = data.rates?.[currency];
-        
         if (rate && rate > 0) {
             window.logger && window.logger.debug(`${asset}: ${rate}`);
             return rate;
         }
-        
         throw new Error(`Failed to fetch ${asset} rate`);
     }
 
@@ -1329,36 +1316,32 @@ class ThemeManager {
         this.currentTheme = localStorage.getItem('selectedTheme') || 'dark';
         this.themes = {
             dark: {
-                name: 'Dark Professional',
+                name: 'Dark',
                 colors: {
-                    '--bg-primary': '#0d1117',
-                    '--bg-secondary': '#161b22',
-                    '--bg-tertiary': '#21262d',
-                    '--text-primary': '#f0f6fc',
-                    '--text-secondary': '#8b949e',
-                    '--accent-primary': '#238636',
-                    '--accent-secondary': '#30363d',
-                    '--positive': '#238636',
-                    '--negative': '#da3633',
-                    '--warning': '#fb8500',
-                    '--border': '#30363d',
-                    '--shadow': 'rgba(0, 0, 0, 0.3)'
+                    '--bg-primary': '#000000',
+                    '--bg-secondary': '#111111',
+                    '--bg-tertiary': '#1c1c1c',
+                    '--text-primary': '#ffffff',
+                    '--text-secondary': '#888888',
+                    '--accent': '#ffffff',
+                    '--positive': '#ffffff',
+                    '--negative': '#888888',
+                    '--border': '#2a2a2a',
+                    '--shadow': 'rgba(0, 0, 0, 0.6)'
                 }
             },
             light: {
-                name: 'Light Professional',
+                name: 'Light',
                 colors: {
                     '--bg-primary': '#ffffff',
-                    '--bg-secondary': '#f6f8fa',
-                    '--bg-tertiary': '#f1f3f4',
-                    '--text-primary': '#24292f',
-                    '--text-secondary': '#656d76',
-                    '--accent-primary': '#0969da',
-                    '--accent-secondary': '#d0d7de',
-                    '--positive': '#1a7f37',
-                    '--negative': '#cf222e',
-                    '--warning': '#bf8700',
-                    '--border': '#d0d7de',
+                    '--bg-secondary': '#f5f5f5',
+                    '--bg-tertiary': '#e8e8e8',
+                    '--text-primary': '#000000',
+                    '--text-secondary': '#666666',
+                    '--accent': '#000000',
+                    '--positive': '#000000',
+                    '--negative': '#666666',
+                    '--border': '#d0d0d0',
                     '--shadow': 'rgba(0, 0, 0, 0.1)'
                 }
             }
