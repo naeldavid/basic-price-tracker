@@ -55,8 +55,7 @@ class UniversalAPI {
         };
         
         this.apiKeys = {
-            metalprice: '16b5a1613fae4f9c92989092b4bb75e7',
-            forexrate: '7bb89b804d720ea84d06b43ec832bd77'
+            metalprice: '16b5a1613fae4f9c92989092b4bb75e7'
         };
         this.fallbackPrices = {
             // Crypto (mid-2025 approximate)
@@ -245,17 +244,29 @@ class UniversalAPI {
     }
 
     async fetchMetalPrice(asset) {
-        const codeMap = { gold: 'XAU', silver: 'XAG', platinum: 'XPT', palladium: 'XPD' };
-        const currencyCode = codeMap[asset];
-        if (!currencyCode) throw new Error(`Unsupported metal: ${asset}`);
+        // Gold and silver are available on frankfurter (ECB) as XAU/XAG
+        // Platinum and palladium fall back to metalpriceapi
+        const frankfurterMap = { gold: 'XAU', silver: 'XAG' };
+        const metalApiMap = { platinum: 'XPT', palladium: 'XPD' };
 
+        if (frankfurterMap[asset]) {
+            const code = frankfurterMap[asset];
+            const data = await this.requestWithRetry(`https://api.frankfurter.app/latest?base=${code}&symbols=USD`);
+            const rate = data.rates?.USD;
+            // frankfurter returns: 1 XAU = X USD
+            if (rate && rate > 0) {
+                window.logger && window.logger.debug(`${asset}: $${rate}`);
+                return rate;
+            }
+            throw new Error(`Failed to fetch ${asset} price`);
+        }
+
+        const currencyCode = metalApiMap[asset];
+        if (!currencyCode) throw new Error(`Unsupported metal: ${asset}`);
         const apiUrl = `https://api.metalpriceapi.com/v1/latest?api_key=${this.apiKeys.metalprice}&base=USD&currencies=${currencyCode}`;
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-
         const data = await this.requestWithRetry(proxyUrl);
         const rate = data.rates?.[currencyCode];
-
-        // MetalPriceAPI returns units-of-metal per 1 USD, so invert to get USD per unit
         if (rate && rate > 0) {
             const price = 1 / rate;
             window.logger && window.logger.debug(`${asset}: $${price}`);
@@ -275,10 +286,7 @@ class UniversalAPI {
         const currency = pairs[asset];
         if (!currency) throw new Error(`Unsupported forex: ${asset}`);
 
-        const apiUrl = `https://api.forexrateapi.com/v1/latest?api_key=${this.apiKeys.forexrate}&base=USD&currencies=${currency}`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-
-        const data = await this.requestWithRetry(proxyUrl);
+        const data = await this.requestWithRetry(`https://api.frankfurter.app/latest?base=USD&symbols=${currency}`);
         const rate = data.rates?.[currency];
         if (rate && rate > 0) {
             window.logger && window.logger.debug(`${asset}: ${rate}`);
@@ -418,14 +426,11 @@ class UniversalAPI {
     }
 
     async fetchForexRates() {
-        const supported = ['EUR','GBP','JPY','CAD','AUD','CHF','CNY','INR','AED','BHD','KRW','BRL','MXN','RUB','TRY','ZAR','NOK','SEK'];
+        // Fetch all rates in one call from frankfurter — no key, no proxy, CORS-enabled
         try {
-            const apiUrl = `https://api.forexrateapi.com/v1/latest?api_key=${this.apiKeys.forexrate}&base=USD&currencies=${supported.join(',')}`;
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-            const data = await this.requestWithRetry(proxyUrl);
+            const data = await this.requestWithRetry('https://api.frankfurter.app/latest?base=USD');
             if (data.rates) {
-                this.forexRates = data.rates;
-                this.forexRates['USD'] = 1;
+                this.forexRates = { ...data.rates, USD: 1 };
             }
         } catch (error) {
             window.logger && window.logger.warn('Failed to fetch forex rates for conversion:', error);
