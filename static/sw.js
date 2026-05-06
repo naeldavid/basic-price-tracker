@@ -40,40 +40,47 @@ self.addEventListener('fetch', (event) => {
     if (request.method !== 'GET') return;
     
     // Skip external API calls (always fetch fresh)
-    if (request.url.includes('coingecko.com') || 
-        request.url.includes('exchangerate-api.com') ||
-        request.url.includes('rss2json.com')) {
-        event.respondWith(fetch(request));
+    const ALLOWED_API_HOSTS = [
+        'api.binance.com',
+        'open.er-api.com',
+        'api.metalpriceapi.com',
+        'api.allorigins.win',
+        'api.rss2json.com',
+        's3.tradingview.com'
+    ];
+    try {
+        const requestHost = new URL(request.url).hostname;
+        if (ALLOWED_API_HOSTS.includes(requestHost)) {
+            event.respondWith(fetch(request));
+            return;
+        }
+    } catch {
         return;
     }
     
-    // Network-first strategy for app files
+    // Network-first strategy for same-origin app files only
+    const requestUrl = new URL(request.url);
+    if (requestUrl.origin !== self.location.origin) return;
+
     event.respondWith(
         fetch(request)
             .then(response => {
-                // Clone response before caching
                 const responseClone = response.clone();
-                
-                // Update cache with fresh content
-                caches.open(CACHE_NAME).then(cache => {
-                    cache.put(request, responseClone);
-                });
-                
+                caches.open(CACHE_NAME).then(cache => cache.put(request, responseClone));
                 return response;
             })
-            .catch(() => {
-                // Network failed, try cache
-                return caches.match(request)
-                    .then(cachedResponse => {
-                        if (cachedResponse) {
-                            return cachedResponse;
-                        }
-                        
-                        // Return offline page if available
-                        return caches.match('/index.html');
-                    });
-            })
+            .catch(() =>
+                caches.match(request).then(cached => cached || caches.match('/index.html'))
+            )
     );
+});
+
+// Message handler with origin verification (CWE-346)
+self.addEventListener('message', (event) => {
+    if (!event.origin || !self.location.origin.startsWith(event.origin.split('/').slice(0, 3).join('/'))) return;
+    if (event.data && event.data.type === 'CACHE_PRICES') {
+        // handled passively — no action needed
+    }
 });
 
 // Background sync support
@@ -105,5 +112,15 @@ self.addEventListener('push', (event) => {
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    event.waitUntil(clients.openWindow('/'));
+    const target = self.location.origin + '/';
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+            for (const client of clientList) {
+                if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            return clients.openWindow(target);
+        })
+    );
 });

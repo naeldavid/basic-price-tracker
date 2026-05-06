@@ -73,15 +73,12 @@ class UniversalAPI {
         this.lastPrices = JSON.parse(localStorage.getItem('lastAssetPrices')) || {};
         this.userSelectedAssets = JSON.parse(localStorage.getItem('userSelectedAssets')) || [];
         this.apiCallCount = 0;
-        this.rateLimitDelay = 1000;
         this.maxRetries = 3;
-        this.requestQueue = [];
-        this.isProcessingQueue = false;
         this.circuitBreaker = {
             failures: 0,
             threshold: 5,
             timeout: 30000,
-            state: 'CLOSED' // CLOSED, OPEN, HALF_OPEN
+            state: 'CLOSED'
         };
         this.setupServiceWorker();
     }
@@ -94,6 +91,7 @@ class UniversalAPI {
                 
                 // Listen for messages from service worker
                 navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.origin && event.origin !== window.location.origin) return;
                     this.handleServiceWorkerMessage(event.data);
                 });
                 
@@ -108,12 +106,8 @@ class UniversalAPI {
     }
 
     handleServiceWorkerMessage(data) {
-        switch (data.type) {
-            case 'BACKGROUND_SYNC':
-                if (data.action === 'PRICE_UPDATE_AVAILABLE') {
-                    this.notifyPriceUpdate();
-                }
-                break;
+        if (data.type === 'BACKGROUND_SYNC' && data.action === 'PRICE_UPDATE_AVAILABLE') {
+            this.notifyPriceUpdate();
         }
     }
 
@@ -123,7 +117,23 @@ class UniversalAPI {
     }
 
     async fetchWithTimeout(url, timeout = 8000) {
-        // Check circuit breaker
+        const ALLOWED_HOSTS = [
+            'api.binance.com',
+            'open.er-api.com',
+            'api.metalpriceapi.com',
+            'api.allorigins.win',
+            'api.rss2json.com'
+        ];
+        try {
+            const { hostname } = new URL(url);
+            if (!ALLOWED_HOSTS.includes(hostname)) {
+                throw new Error(`Blocked request to disallowed host: ${hostname}`);
+            }
+        } catch (e) {
+            if (e.message.startsWith('Blocked')) throw e;
+            throw new Error(`Invalid URL: ${url}`);
+        }
+
         if (this.circuitBreaker.state === 'OPEN') {
             if (Date.now() - this.circuitBreaker.lastFailure < this.circuitBreaker.timeout) {
                 throw new Error('Circuit breaker is OPEN');
@@ -132,26 +142,18 @@ class UniversalAPI {
             }
         }
 
-        const startTime = Date.now();
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
-        
+
         try {
-            const response = await fetch(url, {
-                signal: controller.signal,
-                mode: 'cors'
-            });
+            const response = await fetch(url, { signal: controller.signal, mode: 'cors' });
             clearTimeout(timeoutId);
-            
-            const responseTime = Date.now() - startTime;
-            
             if (response.ok) {
                 this.apiCallCount++;
                 this.resetCircuitBreaker();
                 return await response.json();
-            } else {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         } catch (error) {
             clearTimeout(timeoutId);
             this.recordCircuitBreakerFailure();
@@ -183,46 +185,10 @@ class UniversalAPI {
     recordCircuitBreakerFailure() {
         this.circuitBreaker.failures++;
         this.circuitBreaker.lastFailure = Date.now();
-        
         if (this.circuitBreaker.failures >= this.circuitBreaker.threshold) {
             this.circuitBreaker.state = 'OPEN';
             window.logger && window.logger.warn('Circuit breaker opened due to repeated failures');
         }
-    }
-
-    async rateLimitDelay() {
-        if (this.apiCallCount > 0 && this.apiCallCount % 5 === 0) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-    }
-
-    async queueRequest(requestFn) {
-        return new Promise((resolve, reject) => {
-            this.requestQueue.push({ requestFn, resolve, reject });
-            this.processQueue();
-        });
-    }
-
-    async processQueue() {
-        if (this.isProcessingQueue || this.requestQueue.length === 0) {
-            return;
-        }
-
-        this.isProcessingQueue = true;
-
-        while (this.requestQueue.length > 0) {
-            const { requestFn, resolve, reject } = this.requestQueue.shift();
-            
-            try {
-                await this.rateLimitDelay();
-                const result = await requestFn();
-                resolve(result);
-            } catch (error) {
-                reject(error);
-            }
-        }
-
-        this.isProcessingQueue = false;
     }
 
     async fetchCryptoPrice(asset = 'btc') {
@@ -244,29 +210,15 @@ class UniversalAPI {
     }
 
     async fetchMetalPrice(asset) {
-        // Gold and silver are available on frankfurter (ECB) as XAU/XAG
-        // Platinum and palladium fall back to metalpriceapi
-        const frankfurterMap = { gold: 'XAU', silver: 'XAG' };
-        const metalApiMap = { platinum: 'XPT', palladium: 'XPD' };
-
-        if (frankfurterMap[asset]) {
-            const code = frankfurterMap[asset];
-            const data = await this.requestWithRetry(`https://api.frankfurter.app/latest?base=${code}&symbols=USD`);
-            const rate = data.rates?.USD;
-            // frankfurter returns: 1 XAU = X USD
-            if (rate && rate > 0) {
-                window.logger && window.logger.debug(`${asset}: $${rate}`);
-                return rate;
-            }
-            throw new Error(`Failed to fetch ${asset} price`);
-        }
-
-        const currencyCode = metalApiMap[asset];
+        const codeMap = { gold: 'XAU', silver: 'XAG', platinum: 'XPT', palladium: 'XPD' };
+        const currencyCode = codeMap[asset];
         if (!currencyCode) throw new Error(`Unsupported metal: ${asset}`);
+
         const apiUrl = `https://api.metalpriceapi.com/v1/latest?api_key=${this.apiKeys.metalprice}&base=USD&currencies=${currencyCode}`;
         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
         const data = await this.requestWithRetry(proxyUrl);
         const rate = data.rates?.[currencyCode];
+        // MetalPriceAPI returns units-of-metal per 1 USD, so invert to get USD per unit
         if (rate && rate > 0) {
             const price = 1 / rate;
             window.logger && window.logger.debug(`${asset}: $${price}`);
@@ -286,8 +238,11 @@ class UniversalAPI {
         const currency = pairs[asset];
         if (!currency) throw new Error(`Unsupported forex: ${asset}`);
 
-        const data = await this.requestWithRetry(`https://api.frankfurter.app/latest?base=USD&symbols=${currency}`);
-        const rate = data.rates?.[currency];
+        // Reuse cached rates from fetchForexRates(); fetch fresh only if cache is empty
+        if (!this.forexRates[currency]) {
+            await this.fetchForexRates();
+        }
+        const rate = this.forexRates[currency];
         if (rate && rate > 0) {
             window.logger && window.logger.debug(`${asset}: ${rate}`);
             return rate;
@@ -328,38 +283,9 @@ class UniversalAPI {
         }
     }
 
-    async fetchAllPrices() {
-        const prices = {};
-        const assets = this.userSelectedAssets;
-        
-        if (assets.length === 0) {
-            window.logger && window.logger.warn('No assets selected for fetching');
-            return {};
-        }
-        
-        for (const asset of assets) {
-            try {
-                const price = await this.fetchPrice(asset);
-                prices[asset] = price;
-                window.logger && window.logger.debug(`Fetched ${asset}: ${price}`);
-            } catch (error) {
-                window.logger && window.logger.warn(`Failed to fetch ${asset}:`, error);
-                prices[asset] = this.lastPrices[asset] || 0;
-            }
-        }
-        
-        // Update last prices cache
-        this.lastPrices = { ...this.lastPrices, ...prices };
-        this.saveLastPrices();
-        
-        return prices;
-    }
-
     async fetchNews() {
-        // Use RSS feed proxy for CORS-free news
         try {
-            const response = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.coindesk.com/arc/outboundfeeds/rss/');
-            const data = await response.json();
+            const data = await this.requestWithRetry('https://api.rss2json.com/v1/api.json?rss_url=https://www.coindesk.com/arc/outboundfeeds/rss/');
             if (data.items && data.items.length > 0) {
                 return data.items.slice(0, 10).map(item => ({
                     title: item.title,
@@ -403,19 +329,6 @@ class UniversalAPI {
         return this.userSelectedAssets;
     }
 
-    setBaseCurrency(currency) {
-        this.baseCurrency = currency;
-        try {
-            localStorage.setItem('baseCurrency', currency);
-        } catch (error) {
-            window.logger && window.logger.warn('Failed to save base currency:', error);
-        }
-    }
-
-    getBaseCurrency() {
-        return this.baseCurrency;
-    }
-
     setDisplayCurrency(currency) {
         this.displayCurrency = currency;
         localStorage.setItem('displayCurrency', currency);
@@ -426,9 +339,9 @@ class UniversalAPI {
     }
 
     async fetchForexRates() {
-        // Fetch all rates in one call from frankfurter — no key, no proxy, CORS-enabled
+        // open.er-api.com: free, no key, CORS-enabled, all currencies in one call
         try {
-            const data = await this.requestWithRetry('https://api.frankfurter.app/latest?base=USD');
+            const data = await this.requestWithRetry('https://open.er-api.com/v6/latest/USD');
             if (data.rates) {
                 this.forexRates = { ...data.rates, USD: 1 };
             }
@@ -448,21 +361,8 @@ class UniversalAPI {
         return this.assets[asset];
     }
 
-    getAllAssets() {
-        return Object.keys(this.assets);
-    }
-
     getAssetsByType(type) {
         return Object.keys(this.assets).filter(asset => this.assets[asset].type === type);
-    }
-
-    getApiStats() {
-        return {
-            totalCalls: this.apiCallCount,
-            rateLimitDelay: this.rateLimitDelay,
-            maxRetries: this.maxRetries,
-            lastUpdate: new Date().toISOString()
-        };
     }
 }
 
@@ -1062,16 +962,15 @@ class AlertSystem {
 
     addAlert(asset, type, value, message = '') {
         const alert = {
-            id: Date.now() + Math.random(),
-            asset: asset,
-            type: type, // 'above', 'below', 'change_up', 'change_down'
-            value: value,
-            message: message,
+            id: Date.now(),
+            asset,
+            type,
+            value,
+            message,
             active: true,
             created: new Date().toISOString(),
             triggered: false
         };
-        
         this.alerts.push(alert);
         this.saveAlerts();
         return alert.id;
@@ -1179,22 +1078,13 @@ class AlertSystem {
     showInAppNotification(alert) {
         const notification = document.createElement('div');
         notification.className = 'alert-notification';
-        notification.innerHTML = `
-            <div class="alert-content">
-                <strong>Hey ${localStorage.getItem('userName') || ''}!</strong>
-                <p>${alert.message}</p>
-                <small>${new Date().toLocaleTimeString()}</small>
-            </div>
-            <button onclick="this.parentElement.remove()">×</button>
-        `;
-        
-        // Add styles
         notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: var(--accent-primary);
-            color: #333;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
             padding: 15px;
             border-radius: 5px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -1202,14 +1092,22 @@ class AlertSystem {
             max-width: 300px;
             animation: slideIn 0.3s ease-out;
         `;
-        
+        const strong = document.createElement('strong');
+        strong.textContent = `Hey ${localStorage.getItem('userName') || ''}!`;
+        const p = document.createElement('p');
+        p.textContent = alert.message;
+        const small = document.createElement('small');
+        small.textContent = new Date().toLocaleTimeString();
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '×';
+        closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:1.2rem;float:right;';
+        closeBtn.onclick = () => notification.remove();
+        notification.appendChild(closeBtn);
+        notification.appendChild(strong);
+        notification.appendChild(p);
+        notification.appendChild(small);
         document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, 8000);
+        setTimeout(() => { if (notification.parentElement) notification.remove(); }, 8000);
     }
 
     playSound() {

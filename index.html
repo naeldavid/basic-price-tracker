@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://s3.tradingview.com/tv.js" crossorigin="anonymous" defer></script>
 </head>
 <body>
     <div class="container">
@@ -142,12 +142,23 @@
         function getUserData() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('setup') === 'true') {
-                const userName = decodeURIComponent(urlParams.get('user') || '');
-                const selectedAssets = decodeURIComponent(urlParams.get('assets') || '[]');
-                
-                localStorage.setItem('setupComplete', 'true');
-                localStorage.setItem('userName', userName);
-                localStorage.setItem('userSelectedAssets', selectedAssets);
+                const userName = decodeURIComponent(urlParams.get('user') || '').trim();
+                const rawAssets = decodeURIComponent(urlParams.get('assets') || '[]');
+
+                let selectedAssets;
+                try {
+                    const parsed = JSON.parse(rawAssets);
+                    const allowed = ['btc','eth','bnb','ada','sol','xrp','dot','doge','avax','matic','gold','silver','platinum','palladium','usd_eur','usd_gbp','usd_jpy','usd_cad','usd_aud','usd_chf','usd_cny','usd_inr','usd_aed','usd_bhd','usd_krw','usd_brl','usd_mxn','usd_rub','usd_try','usd_zar','usd_nok','usd_sek','bigmac_us','bigmac_uk','bigmac_jp','bigmac_eu','bigmac_ca'];
+                    selectedAssets = JSON.stringify(Array.isArray(parsed) ? parsed.filter(a => allowed.includes(a)) : []);
+                } catch {
+                    selectedAssets = '[]';
+                }
+
+                if (userName) localStorage.setItem('userName', userName);
+                if (selectedAssets !== '[]') {
+                    localStorage.setItem('setupComplete', 'true');
+                    localStorage.setItem('userSelectedAssets', selectedAssets);
+                }
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
             

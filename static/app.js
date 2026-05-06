@@ -1,3 +1,9 @@
+function sanitize(str) {
+    const d = document.createElement('div');
+    d.textContent = String(str ?? '');
+    return d.innerHTML;
+}
+
 class PriceTracker {
     constructor() {
         this.currentAsset = 'btc';
@@ -5,7 +11,6 @@ class PriceTracker {
         this.allPrices = {};
         this.previousPrices = {};
         this.priceHistory = {};
-        this.chart = null;
         this.api = new UniversalAPI();
         this.storage = new DataStorage();
         this.analytics = new Analytics();
@@ -203,24 +208,17 @@ class PriceTracker {
     }
 
     initChart() {
-        // Replace Chart.js with TradingView widget
         const canvas = document.getElementById('priceChart');
         if (!canvas) return;
         const container = canvas.parentElement;
         const widgetDiv = document.createElement('div');
         widgetDiv.id = 'tradingviewWidget';
-        widgetDiv.style.width = '100%';
-        widgetDiv.style.height = '400px';
+        widgetDiv.style.cssText = 'width:100%;height:400px;';
         container.replaceChild(widgetDiv, canvas);
-        // Load TradingView library if not present
-        if (!window.TradingView) {
-            const script = document.createElement('script');
-            script.src = 'https://s3.tradingview.com/tv.js';
-            script.async = true;
-            script.onload = () => this.loadTradingView(this.currentAsset);
-            document.head.appendChild(script);
-        } else {
+        if (window.TradingView) {
             this.loadTradingView(this.currentAsset);
+        } else {
+            window.addEventListener('tradingview-ready', () => this.loadTradingView(this.currentAsset), { once: true });
         }
     }
 
@@ -302,33 +300,61 @@ class PriceTracker {
         // Display analytics in the price card or create a new section
         const analyticsEl = document.getElementById('analyticsIndicators');
         if (analyticsEl && report.analysis) {
-            const { rsi, volatility, bollingerBands } = report.analysis;
-            let html = '<div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">';
-            html += '<div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Technical Indicators</div>';
-            html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; font-size: 0.85rem;">';
-            
+            const { rsi, volatility } = report.analysis;
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);';
+            const label = document.createElement('div');
+            label.style.cssText = 'font-size:0.9rem;color:var(--text-secondary);margin-bottom:0.5rem;';
+            label.textContent = 'Technical Indicators';
+            const grid = document.createElement('div');
+            grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;font-size:0.85rem;';
             if (rsi) {
                 const rsiColor = rsi > 70 ? 'var(--negative)' : rsi < 30 ? 'var(--positive)' : 'var(--text-secondary)';
-                html += `<div><span style="color: var(--text-secondary);">RSI:</span> <span style="color: ${rsiColor}; font-weight: 600;">${rsi.toFixed(1)}</span></div>`;
+                const el = document.createElement('div');
+                const lbl = document.createElement('span');
+                lbl.style.color = 'var(--text-secondary)';
+                lbl.textContent = 'RSI: ';
+                const val = document.createElement('span');
+                val.style.cssText = `color:${rsiColor};font-weight:600;`;
+                val.textContent = rsi.toFixed(1);
+                el.appendChild(lbl); el.appendChild(val);
+                grid.appendChild(el);
             }
             if (volatility) {
-                html += `<div><span style="color: var(--text-secondary);">Volatility:</span> <span style="font-weight: 600;">${volatility.toFixed(1)}%</span></div>`;
+                const el = document.createElement('div');
+                const lbl = document.createElement('span');
+                lbl.style.color = 'var(--text-secondary)';
+                lbl.textContent = 'Volatility: ';
+                const val = document.createElement('span');
+                val.style.fontWeight = '600';
+                val.textContent = volatility.toFixed(1) + '%';
+                el.appendChild(lbl); el.appendChild(val);
+                grid.appendChild(el);
             }
             if (report.sentiment) {
-                const sentimentColor = report.sentiment.sentiment === 'Bullish' ? 'var(--positive)' : 
-                                      report.sentiment.sentiment === 'Bearish' ? 'var(--negative)' : 'var(--text-secondary)';
-                html += `<div><span style="color: var(--text-secondary);">Sentiment:</span> <span style="color: ${sentimentColor}; font-weight: 600;">${report.sentiment.sentiment}</span></div>`;
+                const s = report.sentiment.sentiment;
+                const sentimentColor = s === 'Bullish' ? 'var(--positive)' : s === 'Bearish' ? 'var(--negative)' : 'var(--text-secondary)';
+                const el = document.createElement('div');
+                const lbl = document.createElement('span');
+                lbl.style.color = 'var(--text-secondary)';
+                lbl.textContent = 'Sentiment: ';
+                const val = document.createElement('span');
+                val.style.cssText = `color:${sentimentColor};font-weight:600;`;
+                val.textContent = s;
+                el.appendChild(lbl); el.appendChild(val);
+                grid.appendChild(el);
             }
-            
-            html += '</div></div>';
-            analyticsEl.innerHTML = html;
+            wrapper.appendChild(label);
+            wrapper.appendChild(grid);
+            analyticsEl.textContent = '';
+            analyticsEl.appendChild(wrapper);
         }
     }
     
     showLoadingState() {
         const priceEl = document.getElementById('currentPrice');
         if (priceEl && !this.priceHistory[this.currentAsset]) {
-            priceEl.innerHTML = '<span style="opacity: 0.5;">Loading...</span>';
+            priceEl.textContent = 'Loading...';
         }
     }
     
@@ -395,18 +421,39 @@ class PriceTracker {
             
             const card = document.createElement('div');
             card.className = `asset-card ${asset === this.currentAsset ? 'selected' : ''}`;
-            card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                    <div style="font-weight:600;">${info.name}</div>
-                    <button class="pin-btn" title="${isPinned ? 'Unpin' : 'Pin'}" style="background:none;border:none;cursor:pointer;font-size:1rem;opacity:${isPinned ? '1' : '0.35'};">${isPinned ? '📌' : '📌'}</button>
-                </div>
-                <div style="font-size:1.5rem;font-weight:700;margin-bottom:0.25rem;">${this.formatPrice(price, asset)}</div>
-                <div class="${change >= 0 ? 'positive' : 'negative'}" style="font-weight:500;">
-                    ${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}% <span style="font-size:0.75rem;opacity:0.6;">(${changeLabel})</span>
-                </div>
-            `;
 
-            card.querySelector('.pin-btn').addEventListener('click', (e) => {
+            const topRow = document.createElement('div');
+            topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;';
+            const nameDiv = document.createElement('div');
+            nameDiv.style.fontWeight = '600';
+            nameDiv.textContent = info.name;
+            const pinBtn = document.createElement('button');
+            pinBtn.className = 'pin-btn';
+            pinBtn.title = isPinned ? 'Unpin' : 'Pin';
+            pinBtn.textContent = '📌';
+            pinBtn.style.cssText = `background:none;border:none;cursor:pointer;font-size:1rem;opacity:${isPinned ? '1' : '0.35'};`;
+            topRow.appendChild(nameDiv);
+            topRow.appendChild(pinBtn);
+
+            const priceDiv = document.createElement('div');
+            priceDiv.style.cssText = 'font-size:1.5rem;font-weight:700;margin-bottom:0.25rem;';
+            priceDiv.textContent = this.formatPrice(price, asset);
+
+            const changeDiv = document.createElement('div');
+            changeDiv.className = change >= 0 ? 'positive' : 'negative';
+            changeDiv.style.fontWeight = '500';
+            const arrow = document.createTextNode(`${change >= 0 ? '↑' : '↓'} ${Math.abs(change).toFixed(2)}% `);
+            const changeSpan = document.createElement('span');
+            changeSpan.style.cssText = 'font-size:0.75rem;opacity:0.6;';
+            changeSpan.textContent = `(${changeLabel})`;
+            changeDiv.appendChild(arrow);
+            changeDiv.appendChild(changeSpan);
+
+            card.appendChild(topRow);
+            card.appendChild(priceDiv);
+            card.appendChild(changeDiv);
+
+            pinBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.togglePin(asset);
             });
@@ -438,10 +485,17 @@ class PriceTracker {
                 const item = document.createElement('div');
                 item.className = 'news-item';
                 const newsUrl = article.url || article.link || '#';
-                item.innerHTML = `
-                    <a href="${newsUrl}" target="_blank" rel="noopener noreferrer" class="news-title">${article.title}</a>
-                    <div class="news-meta">${article.source.name} • ${new Date(article.publishedAt).toLocaleDateString()}</div>
-                `;
+                const a = document.createElement('a');
+                a.href = newsUrl;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.className = 'news-title';
+                a.textContent = article.title;
+                const meta = document.createElement('div');
+                meta.className = 'news-meta';
+                meta.textContent = `${article.source.name} • ${new Date(article.publishedAt).toLocaleDateString()}`;
+                item.appendChild(a);
+                item.appendChild(meta);
                 container.appendChild(item);
             });
         } catch (error) {
@@ -521,12 +575,14 @@ class PriceTracker {
             assets.forEach(asset => {
                 const info = this.api.getAssetInfo(asset);
                 if (!info) return;
-                
+
                 const label = document.createElement('label');
-                label.innerHTML = `
-                    <input type="checkbox" value="${asset}" ${selected.includes(asset) ? 'checked' : ''}>
-                    ${info.name}
-                `;
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = asset;
+                checkbox.checked = selected.includes(asset);
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(' ' + info.name));
                 container.appendChild(label);
             });
         });
@@ -581,12 +637,12 @@ function toggleSettings() {
 function saveAssetSelection() {
     const checkboxes = document.querySelectorAll('#assetSelection input[type="checkbox"]:checked');
     const selected = Array.from(checkboxes).map(cb => cb.value);
-    
+
     if (selected.length === 0) {
-        alert('Please select at least one asset.');
+        window.tracker.showErrorMessage('Please select at least one asset.');
         return;
     }
-    
+
     if (window.tracker) {
         window.tracker.api.saveUserSelection(selected);
         window.tracker.fetchAllPrices();
@@ -617,53 +673,97 @@ function saveSettings() {
     window.tracker.api.setDisplayCurrency(displayCurrency);
     window.tracker.storage.saveSettings(window.tracker.settings);
     window.tracker.startAutoRefresh();
-    
+
     if (notificationsEnabled && Notification.permission === 'default') {
         Notification.requestPermission();
     }
-    
-    // Re-render prices in new currency
+
     window.tracker.updateDisplay();
     window.tracker.updateAssetsGrid();
-    
-    alert('Settings saved!');
+    window.tracker.showSuccessMessage('Settings saved!');
 }
 
 function addPriceAlert() {
     if (!window.tracker) return;
-    
+
     const asset = window.tracker.currentAsset;
     const info = window.tracker.api.getAssetInfo(asset);
     const currentPrice = window.tracker.allPrices[asset];
-    
-    // Better UI for alert creation
-    const type = prompt(`Alert Type for ${info.name}:\n1. Price Above\n2. Price Below\n3. Change Up %\n4. Change Down %\n\nEnter 1-4:`);
-    
-    const typeMap = { '1': 'above', '2': 'below', '3': 'change_up', '4': 'change_down' };
-    const alertType = typeMap[type];
-    
-    if (!alertType) {
-        window.tracker.showErrorMessage('Invalid alert type');
-        return;
-    }
-    
-    const promptMsg = alertType.includes('change') 
-        ? `Enter percentage change (current price: ${window.tracker.formatPrice(currentPrice, asset)}):`
-        : `Enter target price (current: ${window.tracker.formatPrice(currentPrice, asset)}):`;
-    
-    const value = parseFloat(prompt(promptMsg));
-    if (isNaN(value) || value <= 0) {
-        window.tracker.showErrorMessage('Invalid value');
-        return;
-    }
-    
-    const message = `${info.name} ${alertType.replace('_', ' ')} ${value}`;
-    
-    window.tracker.alertSystem.addAlert(asset, alertType, value, message);
-    window.tracker.showSuccessMessage('Price alert created successfully!');
-    
-    // Update alerts display
-    updateAlertsDisplay();
+
+    // Build inline modal instead of prompt()
+    const existing = document.getElementById('alert-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'alert-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:20000;';
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--bg-secondary);border:1px solid var(--border);border-radius:0.75rem;padding:1.5rem;width:320px;';
+
+    const title = document.createElement('h4');
+    title.style.marginBottom = '1rem';
+    title.textContent = `Add Alert — ${info.name}`;
+
+    const typeLabel = document.createElement('label');
+    typeLabel.style.cssText = 'display:block;margin-bottom:0.5rem;';
+    typeLabel.textContent = 'Type';
+    const typeSelect = document.createElement('select');
+    typeSelect.id = 'alert-type';
+    typeSelect.style.cssText = 'width:100%;padding:0.5rem;margin-top:0.25rem;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-primary);border-radius:0.25rem;';
+    [['above','Price Above'],['below','Price Below'],['change_up','Change Up %'],['change_down','Change Down %']].forEach(([val, txt]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = txt;
+        typeSelect.appendChild(opt);
+    });
+    typeLabel.appendChild(typeSelect);
+
+    const valueLabel = document.createElement('label');
+    valueLabel.style.cssText = 'display:block;margin-bottom:1rem;';
+    valueLabel.textContent = `Value (current: ${window.tracker.formatPrice(currentPrice, asset)})`;
+    const valueInput = document.createElement('input');
+    valueInput.id = 'alert-value';
+    valueInput.type = 'number';
+    valueInput.min = '0';
+    valueInput.step = 'any';
+    valueInput.style.cssText = 'width:100%;padding:0.5rem;margin-top:0.25rem;background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text-primary);border-radius:0.25rem;';
+    valueLabel.appendChild(valueInput);
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:0.5rem;';
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = 'Add';
+    confirmBtn.className = 'btn-primary';
+    confirmBtn.style.flex = '1';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.className = 'btn-primary';
+    cancelBtn.style.cssText = 'flex:1;background:var(--bg-tertiary);color:var(--text-primary);';
+    btnRow.appendChild(confirmBtn);
+    btnRow.appendChild(cancelBtn);
+
+    box.appendChild(title);
+    box.appendChild(typeLabel);
+    box.appendChild(valueLabel);
+    box.appendChild(btnRow);
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+
+    cancelBtn.onclick = () => modal.remove();
+    confirmBtn.onclick = () => {
+        const alertType = typeSelect.value;
+        const value = parseFloat(valueInput.value);
+        if (isNaN(value) || value <= 0) {
+            window.tracker.showErrorMessage('Enter a valid value greater than 0.');
+            return;
+        }
+        const message = `${info.name} ${alertType.replace('_', ' ')} ${value}`;
+        window.tracker.alertSystem.addAlert(asset, alertType, value, message);
+        window.tracker.showSuccessMessage('Price alert created!');
+        updateAlertsDisplay();
+        modal.remove();
+    };
 }
 
 function updateAlertsDisplay() {
@@ -679,23 +779,27 @@ function updateAlertsDisplay() {
         return;
     }
     
-    container.innerHTML = alerts.map((alert, idx) => {
+    container.innerHTML = alerts.map(alert => {
         const info = window.tracker.api.getAssetInfo(alert.asset);
         return `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: var(--bg-tertiary); border-radius: 0.25rem; margin-bottom: 0.5rem;">
                 <div>
-                    <div style="font-weight: 500;">${info?.name || alert.asset}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary);">${alert.type}: ${alert.value}</div>
+                    <div style="font-weight: 500;">${sanitize(info?.name || alert.asset)}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">${sanitize(alert.type)}: ${sanitize(String(alert.value))}</div>
                 </div>
-                <button onclick="removeAlert(${idx})" style="background: var(--negative); color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.8rem;">Remove</button>
+                <button data-alert-id="${sanitize(String(alert.id))}" class="remove-alert-btn" style="background: var(--negative); color: var(--bg-primary); border: none; padding: 0.25rem 0.5rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.8rem;">Remove</button>
             </div>
         `;
     }).join('');
+
+    container.querySelectorAll('.remove-alert-btn').forEach(btn => {
+        btn.addEventListener('click', () => removeAlert(btn.dataset.alertId));
+    });
 }
 
-function removeAlert(index) {
+function removeAlert(alertId) {
     if (!window.tracker) return;
-    window.tracker.alertSystem.removeAlert(index);
+    window.tracker.alertSystem.removeAlert(Number(alertId));
     updateAlertsDisplay();
     window.tracker.showSuccessMessage('Alert removed');
 }
@@ -769,12 +873,23 @@ function importData() {
 }
 
 function resetConfiguration() {
-    if (confirm('Reset all settings and return to setup?')) {
-        ['setupComplete', 'userName', 'userSelectedAssets', 'lastAssetPrices'].forEach(key => {
-            localStorage.removeItem(key);
-        });
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:20000;';
+    modal.innerHTML = `
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:0.75rem;padding:1.5rem;width:300px;text-align:center;">
+            <p style="margin-bottom:1.5rem;">Reset all settings and return to setup?</p>
+            <div style="display:flex;gap:0.5rem;">
+                <button id="reset-confirm" class="btn-danger" style="flex:1;">Reset</button>
+                <button id="reset-cancel" class="btn-primary" style="flex:1;background:var(--bg-tertiary);color:var(--text-primary);">Cancel</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('reset-cancel').onclick = () => modal.remove();
+    document.getElementById('reset-confirm').onclick = () => {
+        ['setupComplete', 'userName', 'userSelectedAssets', 'lastAssetPrices'].forEach(key => localStorage.removeItem(key));
         window.location.href = 'setup.html';
-    }
+    };
 }
 
 if (document.readyState === 'loading') {
